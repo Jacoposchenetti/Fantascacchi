@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Regole pensate per una lega fra amici: chi e' autenticato (anche in forma
+// anonima) e conosce il codice della lega puo' leggerla e scriverci.
+// I codici sono casuali a 6 caratteri su un alfabeto di 31 simboli
+// (circa 900 milioni di combinazioni), quindi non si indovinano a tentativi.
+//
+// Nessuno puo' cancellare una lega dal client: si fa dalla console Firebase.
+// Non inserire dati personali: chi ha il link puo' leggerli.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /leagues/{leagueId} {
+      allow get, list: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+
+      match /matchdays/{matchdayId} {
+        allow read, create, update: if request.auth != null;
+        allow delete: if request.auth != null;
+      }
+    }
+
+    // Tutto il resto e' chiuso.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
