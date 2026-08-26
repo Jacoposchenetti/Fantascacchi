@@ -128,22 +128,32 @@ function lotStage(ctx, a) {
   );
 }
 
-/** Aggiorna solo il nodo del timer, e alla scadenza prova a chiudere. */
+/**
+ * Aggiorna solo il nodo del timer, e alla scadenza prova a chiudere il lotto.
+ * L'handle va tenuto in una variabile locale: se nel frattempo e' partito un
+ * altro render, `ticker` punta gia' all'intervallo nuovo e fermare quello
+ * lascerebbe questo a girare a vuoto per sempre.
+ */
 function startTicker(ctx, a, node) {
   let closing = false;
+  let handle = null;
   const tick = () => {
     const left = Math.max(0, (a.endsAt || 0) - Date.now());
-    const secs = Math.ceil(left / 1000);
-    node.textContent = left > 0 ? `${secs}s` : "Assegnato…";
+    node.textContent = left > 0 ? `${Math.ceil(left / 1000)}s` : "Assegnato…";
     node.classList.toggle("urgent", left > 0 && left <= 5000);
     if (left <= 0 && !closing) {
       closing = true;
-      clearInterval(ticker);
+      clearInterval(handle);
+      if (ticker === handle) ticker = null;
       closeLot(ctx);
     }
   };
   tick();
-  ticker = setInterval(tick, 200);
+  // Se il lotto era gia' scaduto al primo giro non serve alcun intervallo.
+  if (!closing) {
+    handle = setInterval(tick, 200);
+    ticker = handle;
+  }
 }
 
 async function bid(ctx, amount) {
