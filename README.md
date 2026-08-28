@@ -59,40 +59,41 @@ serve il passo qui sotto.
 
 ---
 
-## Renderlo multi-giocatore con Firebase
+## Firebase — stato della configurazione
 
-Circa 5 minuti, piano gratuito abbondantemente sufficiente per una lega tra amici.
+Il progetto **`fantascacchi-cdcca`** è già collegato. Fatto via CLI:
 
-1. Vai su <https://console.firebase.google.com> → **Aggiungi progetto**.
-2. **Build → Authentication → Inizia → Anonimo → Attiva.**
-   Serve perché gli amici entrino scrivendo solo il nome, senza registrarsi.
-3. **Build → Firestore Database → Crea database** → modalità produzione →
-   regione `europe-west`.
-4. Nella scheda **Regole** incolla il contenuto di [`firestore.rules`](firestore.rules)
-   e pubblica.
-5. **Impostazioni progetto → Le tue app → `</>` (Web)** → registra l'app → copia
-   l'oggetto `firebaseConfig`.
-6. Incolla i valori in [`js/config.js`](js/config.js):
+- [x] App web registrata, config incollata in [`js/config.js`](js/config.js)
+- [x] API Cloud Firestore abilitata
+- [x] Database Firestore creato (`(default)`, regione `eur3` — Europa)
+- [x] Regole di [`firestore.rules`](firestore.rules) compilate e pubblicate
+- [ ] **Accesso anonimo** — va attivato a mano dalla console
 
-```js
-export const FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "tuo-progetto.firebaseapp.com",
-  projectId: "tuo-progetto",
-  storageBucket: "tuo-progetto.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123...:web:abc...",
-};
+L'ultimo punto è l'unico che la CLI non sa fare: i provider di accesso si
+configurano solo dalla console (o via API Identity Platform con un service
+account). Sono tre clic:
+
+<https://console.firebase.google.com/project/fantascacchi-cdcca/authentication/providers>
+
+→ **Inizia** → **Anonimo** → **Attiva** → **Salva**.
+
+Serve perché gli amici entrino scrivendo solo il nome, senza registrarsi.
+Finché è spento l'app se ne accorge da sola, lo scrive in console e ripiega
+sulla modalità locale invece di rompersi.
+
+### Rideployare le regole
+
+```bash
+firebase deploy --only firestore:rules
 ```
 
-Appena `apiKey` non è più `null`, l'app passa da sola alla modalità online e il link
-d'invito comincia a funzionare.
+### Sulla chiave API
 
-**Sulla chiave API**: quella di Firebase è pubblica per progetto, sta in chiaro in ogni
-app web e non è un segreto — a proteggere i dati sono le regole Firestore, non lei.
+Quella di Firebase è pubblica per progetto, sta in chiaro in ogni app web e non è
+un segreto: a proteggere i dati sono le regole Firestore, non lei.
 
 **Sulle regole incluse**: chiunque sia autenticato e conosca il codice di una lega può
-scriverci. Per una lega tra amici va bene: i codici sono casuali a 6 caratteri
+scriverci. Per una lega tra amici va bene — i codici sono casuali a 6 caratteri
 (circa 900 milioni di combinazioni), quindi non si indovinano. Non metterci dati personali.
 
 ---

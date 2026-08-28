@@ -7,12 +7,12 @@
    --------------------------------------------------------------- */
 
 export const FIREBASE_CONFIG = {
-  apiKey: null,
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyCYrKjDjmkYbEqHNGyZ3RbJFE4EO5yQcpI",
+  authDomain: "fantascacchi-cdcca.firebaseapp.com",
+  projectId: "fantascacchi-cdcca",
+  storageBucket: "fantascacchi-cdcca.firebasestorage.app",
+  messagingSenderId: "156601469530",
+  appId: "1:156601469530:web:fe6a22ac1b74e735b56663",
 };
 
 export const HAS_FIREBASE = Boolean(FIREBASE_CONFIG.apiKey);
