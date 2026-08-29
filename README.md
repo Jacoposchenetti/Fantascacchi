@@ -3,6 +3,8 @@
 Fanta-lega sugli scacchisti veri. Asta a crediti, formazione settimanale, e i punti
 arrivano da soli dalla classifica reale dei **Titled Tuesday** di chess.com.
 
+**Online: <https://jacoposchenetti.github.io/Fantascacchi/>**
+
 Sito completamente statico: nessun server da mantenere, gira su GitHub Pages.
 
 ---
@@ -70,6 +72,7 @@ Progetto **`fantascacchi-cdcca`**, collegato via CLI:
 - [x] Database Firestore creato (`(default)`, regione `eur3` — Europa)
 - [x] Regole di [`firestore.rules`](firestore.rules) compilate e pubblicate
 - [x] Accesso con **Google** attivo
+- [x] `jacoposchenetti.github.io` fra i domini autorizzati
 
 ### Perché Google e non l'accesso anonimo
 
@@ -84,14 +87,13 @@ Se vuoi riattivare anche l'anonimo: abilitalo in console
 
 ### Domini autorizzati
 
-Google rifiuta l'accesso da domini non elencati. `localhost` c'è di default, ma
-**ogni dominio pubblico va aggiunto a mano**:
+Google rifiuta l'accesso da domini non elencati. Al momento sono autorizzati
+`localhost`, i due domini Firebase e `jacoposchenetti.github.io`.
 
-Authentication → Settings → Domini autorizzati → aggiungi
-`jacoposchenetti.github.io`
-
-Senza quel passo il pulsante restituisce `auth/unauthorized-domain` (l'app lo
-traduce in un messaggio leggibile).
+Se un giorno metti il sito altrove (dominio tuo, Netlify, Vercel…) ricordati di
+aggiungere anche quello: Authentication → Settings → Domini autorizzati.
+Senza, il pulsante restituisce `auth/unauthorized-domain` — che l'app traduce
+in un messaggio leggibile invece di lasciarti a bocca asciutta.
 
 ### Rideployare le regole
 
@@ -112,16 +114,15 @@ scriverci. Per una lega tra amici va bene — i codici sono casuali a 6 caratter
 
 ## Pubblicare su GitHub Pages
 
+Già attivo su <https://jacoposchenetti.github.io/Fantascacchi/>, da `main` / root.
+Ogni push su `main` rifà il deploy da solo:
+
 ```bash
-gh repo create fantascacchi --public --source=. --push
+git push
 ```
 
-Poi sul repo: **Settings → Pages → Source: Deploy from a branch → `main` / `root` → Save**.
-
-Dopo un minuto il sito è su `https://<tuo-utente>.github.io/fantascacchi/`.
-
 Il routing usa gli hash (`#/l/abc123/asta`) proprio perché GitHub Pages non sa
-riscrivere gli URL: così ogni link funziona anche ricaricando la pagina.
+riscrivere gli URL: così ogni link d'invito regge anche il ricaricamento.
 
 ---
 
