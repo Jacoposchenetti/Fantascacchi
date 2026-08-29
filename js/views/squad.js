@@ -1,6 +1,14 @@
-import { el, empty, flag, presenceClass } from "../ui.js";
-import { members, rosterOf, budgetLeft, spentBy, memberName } from "../league.js";
+import { el, empty, flag, presenceClass, formStrip } from "../ui.js";
+import { members, rosterOf, budgetLeft, spentBy, memberName, recentForm, currentStreak } from "../league.js";
 import { showPlayer } from "./player.js";
+
+/** Come leggere la striscia: quante delle ultime giornate ha giocato di fila. */
+function streakLabel(p, meta) {
+  const k = currentStreak(p, meta);
+  if (k >= 4) return `presente nelle ultime ${k}`;
+  if (k > 0) return `ultime ${k} di fila`;
+  return "assente all'ultima";
+}
 
 /** Le rose di tutti, con quanto ha speso ciascuno. */
 export default function squadView(ctx) {
@@ -41,6 +49,9 @@ export default function squadView(ctx) {
                   p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
                   p.window ? el("span", { class: presenceClass(p) },
                     `presente ${p.events}/${p.window}`) : null),
+                p.history && el("div.pmeta", { style: "margin-top:.15rem" },
+                  formStrip(recentForm(p, catalog.meta)),
+                  el("span.small.mute-2", streakLabel(p, catalog.meta))),
               ),
             ),
             el("div.pcard-side",

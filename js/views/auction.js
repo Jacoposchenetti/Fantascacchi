@@ -344,7 +344,7 @@ async function closeLot(ctx) {
       turnIdx: (a.turnIdx || 0) + 1,
       turnEndsAt: nextTurnDeadline(lg),
     };
-    if (auctionComplete(lg)) lg.phase = "season";
+    if (auctionComplete(lg)) startSeason(lg);
     return lg;
   });
 }
@@ -401,7 +401,7 @@ function nominationStage(ctx) {
       el("h2", "Rose complete"),
       el("p.muted", { style: "margin:0" }, "Tutti hanno riempito la rosa."),
       ctx.isAdmin && el("button.btn.btn-primary", {
-        onclick: () => ctx.mutate((lg) => { lg.phase = "season"; return lg; }),
+        onclick: () => ctx.mutate((lg) => { startSeason(lg); return lg; }),
       }, "Chiudi l'asta e inizia la stagione"),
     );
   }
@@ -461,6 +461,18 @@ async function nominate(ctx, playerId) {
     };
     return lg;
   });
+}
+
+/**
+ * Fa partire la stagione. Da qui in poi le giornate sono i primi
+ * Titled Tuesday che arrivano: nessuno deve piu' crearle.
+ */
+function startSeason(lg) {
+  lg.phase = "season";
+  lg.season = {
+    startsAt: Date.now(),
+    matchdays: lg.season?.matchdays || 10,
+  };
 }
 
 /* -------------------------------- chiusa ------------------------------- */

@@ -202,9 +202,12 @@ export async function firebaseAdapter() {
     },
 
     async setLineup(id, mdId, uid, lineup) {
-      await updateDoc(mdRef(id, mdId), {
-        [`lineups.${uid}`]: { ...lineup, savedAt: Date.now() },
-      });
+      // setDoc con merge invece di updateDoc: la giornata puo' non esistere
+      // ancora, perche' nessuno la crea piu' a mano.
+      await setDoc(mdRef(id, mdId), {
+        id: mdId,
+        lineups: { [uid]: { ...lineup, savedAt: Date.now() } },
+      }, { merge: true });
     },
 
     watchPresence(id, cb) {

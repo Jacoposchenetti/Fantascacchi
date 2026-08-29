@@ -43,6 +43,9 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
       endsAt: 0, turnIdx: 0, turnEndsAt: 0,
     },
     customPlayers: {},
+    // La stagione parte quando si chiude l'asta: da li' in poi le giornate
+    // si generano da sole dai Titled Tuesday che arrivano.
+    season: { startsAt: 0, matchdays: DEFAULTS.matchdays },
   };
 }
 
@@ -173,7 +176,7 @@ function localAdapter() {
     async setLineup(id, mdId, uid, lineup) {
       const key = LS_MDS(id);
       const all = readJSON(key, {});
-      if (!all[mdId]) throw new Error("Giornata non trovata");
+      if (!all[mdId]) all[mdId] = { id: mdId, lineups: {} };
       all[mdId].lineups = { ...(all[mdId].lineups || {}), [uid]: { ...lineup, savedAt: Date.now() } };
       writeJSON(key, all);
       broadcast(key);

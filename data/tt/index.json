@@ -1,0 +1,114 @@
+{
+ "generatedAt": "2026-08-29T11:02:01Z",
+ "durataStimataS": 10800,
+ "events": [
+  {
+   "id": "titled-tuesday-blitz-august-25-2026-31064127",
+   "date": "2026-08-25",
+   "start": 1787670000,
+   "finish": 1787678041,
+   "rounds": 11,
+   "played": 262,
+   "total": 459
+  },
+  {
+   "id": "titled-tuesday-blitz-august-18-2026-6666505",
+   "date": "2026-08-18",
+   "start": 1787065200,
+   "finish": 1787073279,
+   "rounds": 11,
+   "played": 296,
+   "total": 464
+  },
+  {
+   "id": "titled-tuesday-blitz-august-04-2026-6647253",
+   "date": "2026-08-04",
+   "start": 1785855600,
+   "finish": 1785863547,
+   "rounds": 11,
+   "played": 282,
+   "total": 420
+  },
+  {
+   "id": "titled-tuesday-blitz-july-14-2026-6609343",
+   "date": "2026-07-14",
+   "start": 1784041200,
+   "finish": 1784049302,
+   "rounds": 11,
+   "played": 304,
+   "total": 450
+  },
+  {
+   "id": "titled-tuesday-blitz-july-07-2026-6590341",
+   "date": "2026-07-07",
+   "start": 1783436400,
+   "finish": 1783444403,
+   "rounds": 11,
+   "played": 250,
+   "total": 405
+  },
+  {
+   "id": "titled-tuesday-blitz-june-30-2026-6581005",
+   "date": "2026-06-30",
+   "start": 1782831600,
+   "finish": 1782839645,
+   "rounds": 11,
+   "played": 278,
+   "total": 442
+  },
+  {
+   "id": "titled-tuesday-blitz-june-23-2026-6562125",
+   "date": "2026-06-23",
+   "start": 1782226800,
+   "finish": 1782234882,
+   "rounds": 11,
+   "played": 300,
+   "total": 471
+  },
+  {
+   "id": "titled-tuesday-blitz-june-16-2026-6542703",
+   "date": "2026-06-16",
+   "start": 1781622000,
+   "finish": 1781630035,
+   "rounds": 11,
+   "played": 292,
+   "total": 444
+  },
+  {
+   "id": "titled-tuesday-blitz-june-09-2026-6521721",
+   "date": "2026-06-09",
+   "start": 1781017200,
+   "finish": 1781025228,
+   "rounds": 11,
+   "played": 322,
+   "total": 487
+  },
+  {
+   "id": "titled-tuesday-blitz-may-26-2026-6481951",
+   "date": "2026-05-26",
+   "start": 1779807600,
+   "finish": 1779815658,
+   "rounds": 11,
+   "played": 282,
+   "total": 425
+  },
+  {
+   "id": "titled-tuesday-blitz-may-19-2026-6451879",
+   "date": "2026-05-19",
+   "start": 1779202800,
+   "finish": 1779210856,
+   "rounds": 11,
+   "played": 278,
+   "total": 428
+  },
+  {
+   "id": "titled-tuesday-blitz-may-12-2026-6431785",
+   "date": "2026-05-12",
+   "start": 1778598000,
+   "finish": 1778606006,
+   "rounds": 11,
+   "played": 280,
+   "total": 436
+  }
+ ]
+}

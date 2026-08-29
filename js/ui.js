@@ -124,6 +124,23 @@ export function flag(code) {
   );
 }
 
+/** Pallini presente/assente nelle ultime giornate, in ordine cronologico. */
+export function formStrip(form) {
+  if (!form?.length) return null;
+  const el_ = (t, c, title) => {
+    const n = document.createElement(t);
+    n.className = c;
+    if (title) n.title = title;
+    return n;
+  };
+  const wrap = el_("span", "form-strip", "Ultime giornate: pieno = ha giocato");
+  for (const f of form) {
+    wrap.append(el_("i", f.played ? "fs-on" : "fs-off",
+      `${f.date}: ${f.played ? "ha giocato" : "assente"}`));
+  }
+  return wrap;
+}
+
 /** Classe di rischio per la presenza: sotto il 60% e' una scommessa. */
 export function presenceClass(p) {
   if (!p || p.presence === undefined) return "";

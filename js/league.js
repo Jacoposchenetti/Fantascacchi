@@ -75,6 +75,33 @@ export function onlineCount(league, presence) {
   return members(league).filter((m) => isOnline(presence, m.uid)).length;
 }
 
+/* ---------------------------- forma recente ---------------------------- */
+
+/**
+ * Presenza nelle ultime `n` giornate, dalla piu' vecchia alla piu' recente.
+ *
+ * Serve a decidere chi schierare: le iscrizioni ai Titled Tuesday NON sono
+ * pubbliche in anticipo (verificato: il campo `registered` dell'API contiene
+ * solo residui di tornei vecchi), quindi il segnale migliore disponibile e'
+ * chi si e' presentato nelle settimane appena passate.
+ */
+export function recentForm(player, meta, n = 6) {
+  const events = [...(meta?.events || [])]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, n)
+    .reverse();
+  const giocati = new Set((player?.history || []).map((h) => h.d));
+  return events.map((e) => ({ date: e.date, played: giocati.has(e.date) }));
+}
+
+/** Quante delle ultime giornate ha giocato di fila, partendo dall'ultima. */
+export function currentStreak(player, meta, n = 6) {
+  const form = recentForm(player, meta, n);
+  let k = 0;
+  for (let i = form.length - 1; i >= 0 && form[i].played; i--) k++;
+  return k;
+}
+
 /* ------------------------------- membri -------------------------------- */
 
 export function members(league) {

@@ -439,6 +439,13 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
 .pres-mid { color: var(--text-dim); }
 .pres-low { color: var(--red); }
 
+/* Ultime giornate: pieno = presente, vuoto = assente.
+   Sostituisce l'informazione sulle iscrizioni, che chess.com non pubblica. */
+.form-strip { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; }
+.form-strip > i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+.fs-on  { background: var(--green); }
+.fs-off { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+
 .pts-pos { color: var(--green); }
 .pts-neg { color: var(--red); }
 

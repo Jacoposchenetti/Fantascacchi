@@ -152,6 +152,7 @@ function leagueForm(ctx, auctionStarted) {
         lg.lineupSize = lineup;
         lg.bidSeconds = Number(f.get("secs"));
         lg.turnSeconds = Number(f.get("turnsecs"));
+        lg.season = { ...(lg.season || {}), matchdays: Number(f.get("giornate")) };
         return lg;
       });
       toast("Impostazioni salvate", "ok");
@@ -173,8 +174,14 @@ function leagueForm(ctx, auctionStarted) {
         el("input", { type: "number", name: "turnsecs", value: league.turnSeconds || 60, min: 10, max: 300 }))),
     ),
 
+    el("label.field", "Durata della stagione, in giornate",
+      el("input", { type: "number", name: "giornate",
+        value: league.season?.matchdays || 10, min: 1, max: 52 })),
+
     el("p.small.mute-2", { style: "margin:0" },
-      "«Secondi rilancio» è quanto dura un lotto, e riparte da capo a ogni offerta. "
+      "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta. "
+      + "Dieci sono circa due mesi e mezzo. "
+      + "«Secondi rilancio» è quanto dura un lotto, e riparte da capo a ogni offerta. "
       + "«Secondi chiamata» è quanto tempo hai per scegliere quando tocca a te: "
       + "scaduto quello, il turno passa al successivo."),
 

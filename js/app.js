@@ -11,6 +11,7 @@ import { $, render, el, toast, spinner } from "./ui.js";
 import { getStore } from "./store.js";
 import { loadCatalog, isAdmin as isAdminOf, inviteLink } from "./league.js";
 import { PRESENCE_BEAT } from "./config.js";
+import { loadCalendar, seasonPlan, loadResults } from "./season.js";
 
 import homeView from "./views/home.js";
 import loginView from "./views/login.js";
@@ -42,6 +43,9 @@ const state = {
   unsubs: [],
   subscribedTo: null,
   presence: {},
+  calendar: null,      // indice dei Titled Tuesday con risultati
+  plan: null,          // piano della stagione, derivato dalla lega
+  results: new Map(),  // n giornata -> classifica del torneo
 };
 
 /* -------------------------------- router ------------------------------- */
@@ -108,6 +112,8 @@ async function subscribeLeague(id) {
   state.matchdays = [];
   state.catalog = null;
   state.presence = {};
+  state.plan = null;
+  state.results = new Map();
   state.error = null;
   state.loading = true;
   renderApp();
@@ -126,6 +132,7 @@ async function subscribeLeague(id) {
     } catch (err) {
       state.error = err.message;
     }
+    await syncSeason();
     if (first) {
       first = false;
       state.unsubs.push(state.store.watchMatchdays(id, (mds) => {
@@ -144,6 +151,30 @@ async function subscribeLeague(id) {
   }));
 }
 
+/* ------------------------------- stagione ------------------------------ */
+
+/**
+ * Ricalcola il piano della stagione e carica i risultati che mancano.
+ *
+ * Nessuno crea piu' le giornate a mano: sono i primi Titled Tuesday dopo la
+ * chiusura dell'asta, e i punteggi arrivano da file statici pubblicati dalla
+ * GitHub Action. Qui si scaricano solo quelli non ancora visti.
+ */
+async function syncSeason() {
+  if (!state.league) return;
+  if (!state.calendar) state.calendar = await loadCalendar();
+  state.plan = seasonPlan(state.league, state.calendar);
+
+  for (const slot of state.plan.slots) {
+    if (slot.status !== "scored" && slot.status !== "pending") continue;
+    if (state.results.has(slot.n)) continue;
+    // In parallelo e senza bloccare: la pagina si ridisegna quando arrivano.
+    loadResults(slot)
+      .then((r) => { if (r) { state.results.set(slot.n, r); renderApp(); } })
+      .catch(() => { /* giornata senza risultati: resta in attesa */ });
+  }
+}
+
 /* ------------------------------ contesto ------------------------------- */
 
 function buildCtx() {
@@ -157,6 +188,8 @@ function buildCtx() {
     matchdays: state.matchdays,
     catalog: state.catalog,
     presence: state.presence,
+    plan: state.plan,
+    results: state.results,
     isAdmin: isAdminOf(state.league, uid),
     go,
     refresh: renderApp,

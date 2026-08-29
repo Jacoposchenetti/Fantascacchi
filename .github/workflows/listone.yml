@@ -1,4 +1,11 @@
-# Rigenera data/listone.json dai Titled Tuesday piu' recenti.
+# Due lavori in uno, entrambi settimanali:
+#
+#  1. data/tt/*.json  - i risultati di ogni Titled Tuesday, ridotti a
+#     username -> [punti, piazzamento]. Sono questi a far comparire i
+#     punteggi da soli: l'app li legge e calcola, nessuno preme niente.
+#     Mezzo mega di classifica diventa 6 KB.
+#
+#  2. data/listone.json - medie, presenze e prezzi ricalcolati.
 #
 # Serve perche' medie e presenze invecchiano: un giocatore che sei mesi fa
 # c'era sempre puo' aver smesso, e il prezzo deve seguirlo. Gira di mercoledi'
@@ -8,7 +15,7 @@
 # giorni. Se la lega resta inattiva a lungo, riattivalo dalla scheda Actions
 # oppure lancialo a mano con "Run workflow".
 
-name: Aggiorna il listone
+name: Aggiorna listone e risultati
 
 on:
   schedule:
@@ -33,17 +40,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Pubblica i risultati dei tornei
+        run: python tools/build_results.py --events 12
+
       - name: Rigenera il listone
         run: python tools/build_listone.py --events 26 --top 90
 
       - name: Committa solo se e' cambiato qualcosa
         run: |
-          if git diff --quiet -- data/listone.json; then
-            echo "Prezzi invariati: niente da committare."
+          git add -A data/tt data/listone.json
+          if git diff --cached --quiet; then
+            echo "Nessun torneo nuovo e prezzi invariati: niente da committare."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/listone.json
-          git commit -m "Listone aggiornato: medie e presenze ricalcolate"
+          git commit -m "Risultati e listone aggiornati automaticamente"
           git push

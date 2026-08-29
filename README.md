@@ -37,10 +37,37 @@ settimane: ognuno fa la sua quando gli pare, nessuno aspetta nessuno.
 3. **Puoi metterla in pausa quando vuoi** (solo tu). I cronometri si fermano,
    nessuno può chiamare o rilanciare, e alla ripresa la mano resta a chi ce
    l'aveva — con il turno pieno, non con i secondi che gli erano avanzati.
-4. **L'asta si chiude da sola** quando tutte le rose sono piene.
-5. **Ogni martedì**: apri la giornata scegliendo il Titled Tuesday, ognuno
-   schiera, tu chiudi gli schieramenti prima del torneo e a torneo finito premi
-   *Scarica risultati e calcola*. La classifica si aggiorna per tutti.
+4. **L'asta si chiude da sola** quando tutte le rose sono piene, e da quel
+   momento **parte la stagione**.
+5. **Poi non tocca più a nessuno.** Le giornate sono i primi N Titled Tuesday
+   che arrivano dopo la chiusura dell'asta: nessuno le crea, nessuno carica i
+   punti. Si mette la formazione entro il martedì e basta.
+
+### La stagione si gestisce da sola
+
+Prima ogni giornata andava creata a mano e i punti andavano scaricati premendo
+un pulsante. Adesso la stagione è definita da due soli numeri sulla lega —
+quando è iniziata e quante giornate dura — e tutto il resto si deriva.
+
+Funziona senza un server perché i Titled Tuesday sono regolarissimi: **ogni
+martedì alle 15:00 UTC**, poco più di due ore. Quindi:
+
+- le date future si prevedono, e il calendario mostra tutte le giornate fino
+  alla scadenza già dal primo giorno;
+- **gli schieramenti si chiudono da soli** all'ora d'inizio del torneo;
+- i risultati arrivano da file statici (`data/tt/*.json`, circa 6 KB l'uno) che
+  la GitHub Action pubblica ogni mercoledì. L'app li legge e calcola i punti.
+
+Nella finestra fra la fine del torneo e il passaggio dell'Action, chi apre
+l'app fa scaricare la classifica a chess.com in diretta. Costa di più, ma
+nessuno deve aspettare né premere niente.
+
+**La classifica è la somma delle giornate già giocate.** Prima del primo Titled
+Tuesday della stagione sono tutti a zero, ed è quello che si vede.
+
+**Se ti dimentichi di schierare** resta valida l'ultima formazione che hai
+messo — anche di tre giornate fa. Non serve nessuna scrittura sul database: il
+punteggio risale all'indietro fino a trovarne una.
 
 ### Perché non ci si ruba i giocatori di notte
 
@@ -213,6 +240,19 @@ giornate ti lascia un buco in formazione.
 
 All'asta l'app mostra entrambe: *«8.4/11 quando gioca»* e *«presente 21/26»*,
 con la presenza colorata (verde sopra l'80%, rossa sotto il 55%).
+
+### Le iscrizioni ai tornei non sono pubbliche
+
+Sarebbe utile sapere in anticipo chi si è iscritto al prossimo Titled Tuesday,
+per scegliere la formazione il giorno prima. **Non si può**: il campo
+`registered` dell'API contiene solo residui di tornei vecchi e cancellati
+(verificato su quattro habitué a tre giorni dall'evento: zero tornei futuri), e
+la lista iscritti del torneo è troncata a 25 nomi su 774.
+
+Il sostituto è nella scheda e nella schermata Rose: una **striscia di pallini**
+con le ultime sei giornate, pieno se ha giocato. È il segnale migliore
+disponibile — chi c'è stato le ultime quattro volte di fila probabilmente ci
+sarà anche martedì.
 
 ### Scheda giocatore
 

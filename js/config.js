@@ -46,6 +46,7 @@ export const DEFAULTS = {
   lineupSize: 5,     // titolari schierati ogni giornata
   bidSeconds: 20,    // durata di un lotto d'asta, si azzera a ogni rilancio
   turnSeconds: 60,   // tempo per chiamare quando tocca a te, poi si salta
+  matchdays: 10,     // durata della stagione, in Titled Tuesday
 };
 
 /** Un partecipante e' "online" se ha dato un segno di vita di recente. */

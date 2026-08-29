@@ -1,28 +1,25 @@
-/* Classifica di stagione: somma dei fantapunti di tutte le giornate calcolate. */
+/* Classifica di stagione: somma delle giornate con risultati disponibili. */
 
-import { el, empty, ptsClass } from "../ui.js";
+import { el, ptsClass } from "../ui.js";
 import { scoreLineup } from "../scoring.js";
-import { members, rosterOf } from "../league.js";
+import { members } from "../league.js";
+import { effectiveLineup, dataBreve, dataLunga } from "../season.js";
+import { resultsMap } from "./matchdays.js";
 
 export default function standingsView(ctx) {
-  const { league, matchdays, catalog, uid } = ctx;
+  const { league, plan, results, catalog, uid } = ctx;
   if (!catalog) return el("div.card", "Carico il listone…");
+  if (!plan) return el("div.card", "Carico il calendario…");
 
-  const scored = matchdays
-    .filter((m) => m.status === "scored")
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  // Solo le giornate per cui i risultati sono arrivati davvero.
+  const giocate = plan.slots.filter((s) => results.has(s.n));
 
-  if (!scored.length) {
-    return empty("🏆", "Classifica vuota",
-      el("p.small.mute-2", "Comparirà appena verrà calcolata la prima giornata."));
-  }
-
-  const ms = members(league);
-  const table = ms.map((m) => {
-    const perMd = scored.map((md) => {
-      const lu = md.lineups?.[m.uid];
+  const table = members(league).map((m) => {
+    const perMd = giocate.map((slot) => {
+      const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
       if (!lu) return 0;
-      return scoreLineup(lu, new Map(Object.entries(md.results || {})), undefined, md.rounds || 11).total;
+      return scoreLineup(lu, resultsMap(ctx, slot, results.get(slot.n)),
+        undefined, slot.rounds).total;
     });
     const total = perMd.reduce((s, v) => s + v, 0);
     return {
@@ -34,12 +31,21 @@ export default function standingsView(ctx) {
   }).sort((a, b) => b.total - a.total);
 
   const leader = table[0];
+  const prima = giocate.length === 0;
 
   return el("div.stack", { style: "gap:1.4rem" },
+    seasonHeader(ctx, plan),
+
+    prima && el("div.notice",
+      "La stagione non è ancora cominciata: si parte tutti da zero. ",
+      "I punti compaiono da soli dopo il primo Titled Tuesday, il ",
+      el("strong", dataLunga(plan.slots[0].date)), "."),
+
     el("section",
       el("div.section-head",
         el("h2", "Classifica"),
-        el("span.small.muted", `${scored.length} ${scored.length === 1 ? "giornata" : "giornate"}`)),
+        el("span.small.muted",
+          `${giocate.length} ${giocate.length === 1 ? "giornata" : "giornate"} su ${plan.total}`)),
 
       el("div.tablewrap",
         el("table",
@@ -60,13 +66,14 @@ export default function standingsView(ctx) {
       ),
     ),
 
-    el("section",
+    !prima && el("section",
       el("div.section-head", el("h2", "Giornata per giornata")),
       el("div.tablewrap",
         el("table",
           el("thead", el("tr",
             el("th", "Partecipante"),
-            scored.map((md) => el("th.num", { title: md.label }, shortLabel(md))),
+            giocate.map((s) => el("th.num", { title: dataLunga(s.date) },
+              `G${s.n}`)),
           )),
           el("tbody", table.map((r) => el("tr", { class: r.uid === uid ? "is-me" : "" },
             el("td", r.name),
@@ -81,13 +88,23 @@ export default function standingsView(ctx) {
         ),
       ),
       el("p.small.mute-2", { style: "margin-top:.5rem" },
-        "In oro il migliore di giornata."),
+        "In oro il migliore di giornata. ",
+        giocate.map((s) => `G${s.n} = ${dataBreve(s.date)}`).join(" · ")),
     ),
   );
 }
 
-function shortLabel(md) {
-  if (!md.date) return md.id.slice(0, 6);
-  const [, m, d] = md.date.split("-");
-  return `${Number(d)}/${Number(m)}`;
+function seasonHeader(ctx, plan) {
+  const pct = Math.round((plan.done / plan.total) * 100);
+  const finita = plan.done >= plan.total;
+  return el("div.card.card-tight.stack-s",
+    el("div.spread",
+      el("strong", finita
+        ? "Stagione conclusa"
+        : `Giornata ${Math.min(plan.done + 1, plan.total)} di ${plan.total}`),
+      el("span.small.muted", finita
+        ? dataLunga(plan.slots[plan.total - 1].date)
+        : `si chiude il ${dataLunga(plan.slots[plan.total - 1].date)}`)),
+    el("div.bar", el("i", { style: `width:${pct}%` })),
+  );
 }
