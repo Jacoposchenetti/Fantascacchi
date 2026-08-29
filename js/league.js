@@ -1,4 +1,6 @@
-/* Stato derivato della lega: catalogo giocatori, proprieta', budget. */
+/* Stato derivato della lega: catalogo giocatori, proprieta', budget, presenza. */
+
+import { PRESENCE_TTL } from "./config.js";
 
 let _listone = null;
 
@@ -57,6 +59,24 @@ export function maxBid(league, uid) {
   return Math.max(0, budgetLeft(league, uid) - (slotsLeft - 1));
 }
 
+/* ------------------------------- presenza ------------------------------ */
+
+/**
+ * Online = ha dato un segno di vita da meno di PRESENCE_TTL.
+ * Volutamente approssimativo: serve a sapere se vale la pena aspettare
+ * qualcuno, non a fare contabilita'.
+ */
+export function isOnline(presence, uid, now = Date.now()) {
+  const at = presence?.[uid] || 0;
+  return now - at < PRESENCE_TTL;
+}
+
+export function onlineCount(league, presence) {
+  return members(league).filter((m) => isOnline(presence, m.uid)).length;
+}
+
+/* ------------------------------- membri -------------------------------- */
+
 export function members(league) {
   return Object.values(league?.members || {})
     .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
@@ -80,6 +100,18 @@ export function nominator(league) {
   const ms = members(league).filter((m) => ownedCount(league, m.uid) < league.rosterSize);
   if (!ms.length) return null;
   return ms[(league.auction?.turnIdx || 0) % ms.length].uid;
+}
+
+/** Millisecondi rimasti a chi deve chiamare; 0 se il tempo e' finito. */
+export function turnLeft(league, now = Date.now()) {
+  const end = league?.auction?.turnEndsAt || 0;
+  if (!end) return null;             // turno senza scadenza (leghe vecchie)
+  return Math.max(0, end - now);
+}
+
+/** Istante di scadenza del prossimo turno di chiamata. */
+export function nextTurnDeadline(league, now = Date.now()) {
+  return now + (league?.turnSeconds || 60) * 1000;
 }
 
 /** Link d'invito assoluto, funziona anche in sottocartella su GitHub Pages. */

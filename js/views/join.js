@@ -35,7 +35,8 @@ export default function joinView(ctx, leagueId) {
       return;
     }
 
-    const full = league.phase !== "auction";
+    // In lobby si entra senza problemi; il guaio e' arrivare a stagione iniziata.
+    const full = league.phase === "season";
     const nMembers = Object.keys(league.members || {}).length;
 
     const form = el("form.stack", { onsubmit: submit },

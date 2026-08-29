@@ -71,6 +71,10 @@ export async function firebaseAdapter() {
   const leagueRef = (id) => doc(db, "leagues", id);
   const mdsRef = (id) => collection(db, "leagues", id, "matchdays");
   const mdRef = (id, mdId) => doc(db, "leagues", id, "matchdays", mdId);
+  // La presenza sta in documenti separati, uno per persona: cosi' i battiti
+  // ogni 20 secondi non entrano in conflitto con le transazioni dei rilanci.
+  const presRef = (id, uid) => doc(db, "leagues", id, "presence", uid);
+  const presColl = (id) => collection(db, "leagues", id, "presence");
 
   /** Traduce i codici Firebase in qualcosa di leggibile. */
   function authError(e) {
@@ -201,6 +205,22 @@ export async function firebaseAdapter() {
       await updateDoc(mdRef(id, mdId), {
         [`lineups.${uid}`]: { ...lineup, savedAt: Date.now() },
       });
+    },
+
+    watchPresence(id, cb) {
+      return onSnapshot(
+        presColl(id),
+        (snap) => {
+          const out = {};
+          snap.docs.forEach((d) => { out[d.id] = d.data().at || 0; });
+          cb(out);
+        },
+        (err) => { console.error("watchPresence", err); cb({}); },
+      );
+    },
+
+    async touchPresence(id, uid) {
+      await setDoc(presRef(id, uid), { at: Date.now() });
     },
 
     async exportLeague(id) {

@@ -1,22 +1,33 @@
 /* ---------------------------------------------------------------
    Asta a chiamata.
 
-   Il lotto vive dentro league.auction: { playerId, bid, bidderUid, endsAt }.
-   endsAt e' un istante assoluto, quindi ogni client calcola da solo quanto
-   manca. Quando scade, il PRIMO client che se ne accorge prova a chiudere
-   il lotto con una transazione; gli altri trovano lo stato gia' cambiato
-   e non fanno nulla. Nessun server, nessuna doppia assegnazione.
+   Due cronometri, non uno:
+   - il LOTTO (auction.endsAt) dura bidSeconds e riparte a ogni rilancio;
+   - il TURNO DI CHIAMATA (auction.turnEndsAt) dura turnSeconds e allo
+     scadere passa da solo al successivo.
+
+   Il secondo mancava, e bastava una persona distratta per congelare
+   l'asta all'infinito.
+
+   Nessun server arbitra: chi si accorge per primo che un tempo e' scaduto
+   prova a far avanzare lo stato con una transazione, e chi arriva dopo lo
+   trova gia' cambiato e non fa nulla.
    --------------------------------------------------------------- */
 
-import { el, toast, empty, flag, confirmDialog, modal } from "../ui.js";
+import { el, empty, flag, confirmDialog, modal } from "../ui.js";
 import {
   catalogList, ownerOf, ownedCount, budgetLeft, maxBid,
-  members, memberName, nominator, auctionComplete,
+  members, memberName, nominator, auctionComplete, isOnline, nextTurnDeadline,
 } from "../league.js";
+import { alertNewLot, alertYourTurn, isMuted, setMuted, primeAudio, stopFlash } from "../alerts.js";
+import lobbyView from "./lobby.js";
 
 let filter = "";
 let onlyFree = true;
 let ticker = null;
+
+// Ultimo stato osservato, per capire cos'e' CAMBIATO e avvisare solo allora.
+let seen = { lot: undefined, turn: undefined };
 
 export default function auctionView(ctx) {
   clearInterval(ticker);
@@ -25,49 +36,79 @@ export default function auctionView(ctx) {
   const { league, catalog } = ctx;
   if (!catalog) return el("div.card", "Carico il listone…");
 
-  if (league.phase !== "auction") {
-    return el("div.stack",
-      el("div.card.stack",
-        el("h2", "Asta chiusa"),
-        el("p.muted", { style: "margin:0" }, "Le rose sono complete. Da qui si gioca a colpi di formazione."),
-        el("div.row",
-          el("button.btn.btn-primary", { onclick: () => ctx.go(`#/l/${league.id}/formazione`) }, "Vai alla formazione"),
-          ctx.isAdmin && el("button.btn.btn-ghost", {
-            onclick: async () => {
-              if (await confirmDialog("Riaprire l'asta?",
-                "Le rose restano come sono, ma si potranno comprare altri giocatori.", "Riapri")) {
-                ctx.mutate((lg) => { lg.phase = "auction"; return lg; });
-              }
-            },
-          }, "Riapri l'asta"),
-        ),
-      ),
-      memberPanel(ctx),
-    );
-  }
+  if (league.phase === "lobby") return lobbyView(ctx);
+  if (league.phase !== "auction") return closedStage(ctx);
+
+  migrateTurnDeadline(ctx);
+  handleAlerts(ctx);
 
   const a = league.auction || {};
   const running = a.status === "running" && a.playerId;
 
   return el("div.stack",
     running ? lotStage(ctx, a) : nominationStage(ctx),
+    soundRow(ctx),
     memberPanel(ctx),
     !running && playerPicker(ctx),
   );
 }
 
+/* ------------------------------ transizioni ---------------------------- */
+
+/**
+ * Le leghe create prima del timer di chiamata non hanno turnEndsAt.
+ * Lo imposta l'admin, una volta sola, cosi' non restano bloccate su un
+ * turno senza scadenza.
+ */
+function migrateTurnDeadline(ctx) {
+  const a = ctx.league.auction || {};
+  if (!ctx.isAdmin || a.status === "running" || a.turnEndsAt) return;
+  ctx.mutate((lg) => {
+    if (lg.auction?.turnEndsAt || lg.auction?.status === "running") return null;
+    lg.auction = { ...lg.auction, turnEndsAt: nextTurnDeadline(lg) };
+    return lg;
+  });
+}
+
+/** Avvisa solo sui cambi di stato, mai al primo disegno della pagina. */
+function handleAlerts(ctx) {
+  const a = ctx.league.auction || {};
+  const running = a.status === "running";
+  const lot = running ? a.playerId : null;
+  const turn = running ? null : nominator(ctx.league);
+
+  if (seen.lot !== undefined) {
+    // Lotto nuovo: avvisa tutti tranne chi l'ha appena chiamato.
+    if (lot && lot !== seen.lot && a.bidderUid !== ctx.uid) {
+      alertNewLot(ctx.catalog.map.get(lot)?.name || "Un giocatore");
+    }
+    // Il turno e' arrivato a te.
+    if (turn && turn !== seen.turn && turn === ctx.uid) {
+      alertYourTurn();
+    }
+  }
+  seen.lot = lot;
+  seen.turn = turn;
+}
+
 /* ------------------------------- il lotto ------------------------------ */
 
 function lotStage(ctx, a) {
-  const { league, catalog, uid } = ctx;
-  const p = catalog.map.get(a.playerId);
-  const leader = a.bidderUid;
-  const iLead = leader === uid;
+  const { league, uid } = ctx;
+  const p = ctx.catalog.map.get(a.playerId);
+  const iLead = a.bidderUid === uid;
   const myMax = maxBid(league, uid);
   const canBid = !iLead && ownedCount(league, uid) < league.rosterSize && myMax > a.bid;
 
   const timerNode = el("div.auction-timer", "—");
-  startTicker(ctx, a, timerNode);
+  startTicker(
+    () => (a.endsAt || 0) - Date.now(),
+    (left) => {
+      timerNode.textContent = left > 0 ? `${Math.ceil(left / 1000)}s` : "Assegnato…";
+      timerNode.classList.toggle("urgent", left > 0 && left <= 5000);
+    },
+    () => closeLot(ctx),
+  );
 
   const steps = [1, 5, 10, 25].filter((s) => a.bid + s <= myMax);
 
@@ -90,7 +131,7 @@ function lotStage(ctx, a) {
       el("div.auction-bid", a.bid, el("span", { style: "font-size:.4em" }, " cr")),
       el("div.small.muted",
         iLead ? el("strong", { style: "color:var(--gold)" }, "Sei tu al comando")
-              : `Offerta di ${memberName(league, leader)}`),
+              : `Offerta di ${memberName(league, a.bidderUid)}`),
     ),
 
     timerNode,
@@ -119,7 +160,10 @@ function lotStage(ctx, a) {
         if (await confirmDialog("Annullare il lotto?",
           `${p?.name || a.playerId} torna libero e nessuno paga.`, "Annulla lotto")) {
           ctx.mutate((lg) => {
-            lg.auction = { ...lg.auction, status: "idle", playerId: null, bid: 0, bidderUid: null, endsAt: 0 };
+            lg.auction = {
+              ...lg.auction, status: "idle", playerId: null, bid: 0,
+              bidderUid: null, endsAt: 0, turnEndsAt: nextTurnDeadline(lg),
+            };
             return lg;
           });
         }
@@ -129,28 +173,27 @@ function lotStage(ctx, a) {
 }
 
 /**
- * Aggiorna solo il nodo del timer, e alla scadenza prova a chiudere il lotto.
- * L'handle va tenuto in una variabile locale: se nel frattempo e' partito un
- * altro render, `ticker` punta gia' all'intervallo nuovo e fermare quello
+ * Cronometro condiviso fra lotto e turno.
+ * L'handle sta in una variabile locale: se nel frattempo e' partito un altro
+ * render, `ticker` punta gia' all'intervallo nuovo e fermare quello
  * lascerebbe questo a girare a vuoto per sempre.
  */
-function startTicker(ctx, a, node) {
-  let closing = false;
+function startTicker(remaining, paint, onExpire) {
+  let fired = false;
   let handle = null;
   const tick = () => {
-    const left = Math.max(0, (a.endsAt || 0) - Date.now());
-    node.textContent = left > 0 ? `${Math.ceil(left / 1000)}s` : "Assegnato…";
-    node.classList.toggle("urgent", left > 0 && left <= 5000);
-    if (left <= 0 && !closing) {
-      closing = true;
+    const left = Math.max(0, remaining());
+    paint(left);
+    if (left <= 0 && !fired) {
+      fired = true;
       clearInterval(handle);
       if (ticker === handle) ticker = null;
-      closeLot(ctx);
+      onExpire();
     }
   };
   tick();
-  // Se il lotto era gia' scaduto al primo giro non serve alcun intervallo.
-  if (!closing) {
+  // Se era gia' scaduto al primo giro non serve alcun intervallo.
+  if (!fired) {
     handle = setInterval(tick, 200);
     ticker = handle;
   }
@@ -158,6 +201,7 @@ function startTicker(ctx, a, node) {
 
 async function bid(ctx, amount) {
   const uid = ctx.uid;
+  primeAudio();
   await ctx.mutate((lg) => {
     const a = lg.auction || {};
     if (a.status !== "running") throw new Error("Il lotto si è già chiuso");
@@ -176,7 +220,7 @@ async function bid(ctx, amount) {
   });
 }
 
-/** Chiude il lotto. Idempotente: chi arriva secondo non trova nulla da fare. */
+/** Chiude il lotto e apre il turno successivo. Idempotente. */
 async function closeLot(ctx) {
   await ctx.mutate((lg) => {
     const a = lg.auction || {};
@@ -191,8 +235,24 @@ async function closeLot(ctx) {
     lg.auction = {
       status: "idle", playerId: null, bid: 0, bidderUid: null, endsAt: 0,
       turnIdx: (a.turnIdx || 0) + 1,
+      turnEndsAt: nextTurnDeadline(lg),
     };
     if (auctionComplete(lg)) lg.phase = "season";
+    return lg;
+  });
+}
+
+/** Passa la mano. Idempotente: chi arriva secondo trova la scadenza gia' spostata. */
+async function skipTurn(ctx, manual = false) {
+  await ctx.mutate((lg) => {
+    const a = lg.auction || {};
+    if (lg.phase !== "auction" || a.status === "running") return null;
+    if (!manual && a.turnEndsAt && Date.now() < a.turnEndsAt) return null;
+    lg.auction = {
+      ...a,
+      turnIdx: (a.turnIdx || 0) + 1,
+      turnEndsAt: nextTurnDeadline(lg),
+    };
     return lg;
   });
 }
@@ -239,17 +299,45 @@ function nominationStage(ctx) {
     );
   }
 
+  const deadline = league.auction?.turnEndsAt || 0;
+  const timerNode = el("div.auction-timer", { style: "margin:0" }, deadline ? "—" : "");
+
+  if (deadline) {
+    startTicker(
+      () => deadline - Date.now(),
+      (left) => {
+        timerNode.textContent = left > 0
+          ? `${Math.ceil(left / 1000)}s per chiamare`
+          : "Turno saltato…";
+        timerNode.classList.toggle("urgent", left > 0 && left <= 10000);
+      },
+      () => skipTurn(ctx),
+    );
+  }
+
+  const offline = !isOnline(ctx.presence, turn);
+
   return el("div.card.card-hi.stack-s", { style: "text-align:center" },
     el("span.badge.badge-gold", { style: "margin:0 auto" }, "Turno di chiamata"),
     el("h2", mine ? "Tocca a te" : `Tocca a ${memberName(league, turn)}`),
+
+    timerNode,
+
     el("p.muted.small", { style: "margin:0" },
       mine ? "Scegli un giocatore dalla lista qui sotto: parte da 1 credito e sei tu il primo offerente."
+           : offline ? "Non risulta collegato: allo scadere il turno passa da solo."
            : "Appena chiama, il lotto compare qui e potrai rilanciare."),
+
+    !mine && el("button.btn.btn-ghost.btn-sm", {
+      style: "justify-self:center",
+      onclick: () => skipTurn(ctx, true),
+    }, "Salta il turno"),
   );
 }
 
 async function nominate(ctx, playerId) {
   const uid = ctx.uid;
+  primeAudio();
   await ctx.mutate((lg) => {
     if (lg.auction?.status === "running") throw new Error("C'è già un lotto in corso");
     if (nominator(lg) !== uid) throw new Error("Non è il tuo turno di chiamata");
@@ -260,9 +348,58 @@ async function nominate(ctx, playerId) {
       status: "running", playerId, bid: 1, bidderUid: uid,
       endsAt: Date.now() + (lg.bidSeconds || 20) * 1000,
       turnIdx: lg.auction?.turnIdx || 0,
+      turnEndsAt: 0,
     };
     return lg;
   });
+}
+
+/* -------------------------------- chiusa ------------------------------- */
+
+function closedStage(ctx) {
+  const { league } = ctx;
+  return el("div.stack",
+    el("div.card.stack",
+      el("h2", "Asta chiusa"),
+      el("p.muted", { style: "margin:0" },
+        "Le rose sono complete. Da qui si gioca a colpi di formazione."),
+      el("div.row",
+        el("button.btn.btn-primary", {
+          onclick: () => ctx.go(`#/l/${league.id}/formazione`),
+        }, "Vai alla formazione"),
+        ctx.isAdmin && el("button.btn.btn-ghost", {
+          onclick: async () => {
+            if (await confirmDialog("Riaprire l'asta?",
+              "Le rose restano come sono, ma si potranno comprare altri giocatori.", "Riapri")) {
+              ctx.mutate((lg) => {
+                lg.phase = "auction";
+                lg.auction = { ...lg.auction, status: "idle", turnEndsAt: nextTurnDeadline(lg) };
+                return lg;
+              });
+            }
+          },
+        }, "Riapri l'asta"),
+      ),
+    ),
+    memberPanel(ctx),
+  );
+}
+
+/* -------------------------------- avvisi ------------------------------- */
+
+function soundRow(ctx) {
+  const muted = isMuted();
+  return el("div.row", { style: "justify-content:center" },
+    el("button.btn.btn-sm.btn-ghost", {
+      onclick: () => {
+        setMuted(!muted);
+        if (muted) primeAudio();       // riattivando, sblocca subito l'audio
+        else stopFlash();
+        ctx.refresh();
+      },
+      "aria-pressed": String(!muted),
+    }, muted ? "🔕 Avvisi disattivati" : "🔔 Avvisi attivi"),
+  );
 }
 
 /* ------------------------------ lista scelta --------------------------- */
@@ -318,13 +455,12 @@ function playerPicker(ctx) {
 function playerRow(ctx, p, myTurn) {
   const { league } = ctx;
   const owner = ownerOf(league, p.id);
-  const disabled = Boolean(owner) || !myTurn;
+  const clickable = myTurn && !owner;
 
-  return el(myTurn && !owner ? "button.pcard" : "div.pcard", {
+  return el(clickable ? "button.pcard" : "div.pcard", {
     class: owner ? "is-owned" : "",
-    type: myTurn && !owner ? "button" : null,
-    disabled: disabled && myTurn ? true : null,
-    onclick: myTurn && !owner ? () => nominate(ctx, p.id) : null,
+    type: clickable ? "button" : null,
+    onclick: clickable ? () => nominate(ctx, p.id) : null,
   },
     p.avatar
       ? el("img.pav", { src: p.avatar, alt: "", loading: "lazy" })
@@ -349,20 +485,31 @@ function playerRow(ctx, p, myTurn) {
 /* ------------------------------- pannello ------------------------------ */
 
 function memberPanel(ctx) {
-  const { league, uid } = ctx;
-  const turn = nominator(league);
+  const { league, uid, presence } = ctx;
+  const turn = league.phase === "auction" ? nominator(league) : null;
+  const ms = members(league);
+  const online = ms.filter((m) => isOnline(presence, m.uid)).length;
 
   return el("section",
-    el("div.section-head", el("h2", "Partecipanti")),
-    el("div.grid", members(league).map((m) => {
+    el("div.section-head",
+      el("h2", "Partecipanti"),
+      el("span.small.muted", `${online}/${ms.length} online`)),
+
+    el("div.grid", ms.map((m) => {
       const left = budgetLeft(league, m.uid);
       const owned = ownedCount(league, m.uid);
       const pct = Math.round((left / league.budget) * 100);
+      const up = isOnline(presence, m.uid);
       return el("div.card.card-tight.stack-s", {
         class: m.uid === turn ? "card-hi" : "",
       },
         el("div.spread",
-          el("strong", m.name, m.uid === uid ? el("span.muted.small", " (tu)") : null),
+          el("strong",
+            el("span.dot", {
+              class: up ? "dot-on" : "dot-off",
+              title: up ? "Collegato" : "Non collegato",
+            }),
+            m.name, m.uid === uid ? el("span.muted.small", " (tu)") : null),
           owned >= league.rosterSize
             ? el("span.badge.badge-green", "Completa")
             : el("span.badge", `${owned}/${league.rosterSize}`)),

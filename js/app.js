@@ -10,6 +10,7 @@
 import { $, render, el, toast, spinner } from "./ui.js";
 import { getStore } from "./store.js";
 import { loadCatalog, isAdmin as isAdminOf, inviteLink } from "./league.js";
+import { PRESENCE_BEAT } from "./config.js";
 
 import homeView from "./views/home.js";
 import loginView from "./views/login.js";
@@ -40,6 +41,7 @@ const state = {
   error: null,
   unsubs: [],
   subscribedTo: null,
+  presence: {},
 };
 
 /* -------------------------------- router ------------------------------- */
@@ -65,6 +67,39 @@ export function go(hash) {
 function unsubscribeAll() {
   state.unsubs.forEach((u) => { try { u(); } catch { /* gia' chiuso */ } });
   state.unsubs = [];
+  stopHeartbeat();
+}
+
+/* ------------------------------- presenza ------------------------------ */
+
+let heartbeat = null;
+
+/**
+ * Un battito periodico dice agli altri che sei collegato. Serve soprattutto
+ * durante l'asta: sapere che qualcuno non c'e' cambia se ha senso aspettarlo.
+ * Si batte anche al ritorno sulla scheda, per non risultare spento appena
+ * riaperto il telefono.
+ */
+function startHeartbeat(id) {
+  stopHeartbeat();
+  const beat = () => {
+    if (!state.store.touchPresence || !state.store.me) return;
+    state.store.touchPresence(id, state.store.me.uid).catch(() => {});
+  };
+  beat();
+  heartbeat = setInterval(beat, PRESENCE_BEAT);
+  document.addEventListener("visibilitychange", onVisibleBeat);
+}
+
+function onVisibleBeat() {
+  if (document.hidden || !state.subscribedTo) return;
+  state.store.touchPresence?.(state.subscribedTo, state.store.me.uid).catch(() => {});
+}
+
+function stopHeartbeat() {
+  if (heartbeat) clearInterval(heartbeat);
+  heartbeat = null;
+  document.removeEventListener("visibilitychange", onVisibleBeat);
 }
 
 async function subscribeLeague(id) {
@@ -72,6 +107,7 @@ async function subscribeLeague(id) {
   state.league = null;
   state.matchdays = [];
   state.catalog = null;
+  state.presence = {};
   state.error = null;
   state.loading = true;
   renderApp();
@@ -96,6 +132,13 @@ async function subscribeLeague(id) {
         state.matchdays = [...mds].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
         renderApp();
       }));
+      if (state.store.watchPresence) {
+        state.unsubs.push(state.store.watchPresence(id, (pres) => {
+          state.presence = pres || {};
+          renderApp();
+        }));
+      }
+      startHeartbeat(id);
     }
     renderApp();
   }));
@@ -113,6 +156,7 @@ function buildCtx() {
     league: state.league,
     matchdays: state.matchdays,
     catalog: state.catalog,
+    presence: state.presence,
     isAdmin: isAdminOf(state.league, uid),
     go,
     refresh: renderApp,

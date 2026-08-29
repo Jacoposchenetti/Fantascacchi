@@ -138,6 +138,7 @@ function leagueForm(ctx, auctionStarted) {
         lg.rosterSize = roster;
         lg.lineupSize = lineup;
         lg.bidSeconds = Number(f.get("secs"));
+        lg.turnSeconds = Number(f.get("turnsecs"));
         return lg;
       });
       toast("Impostazioni salvate", "ok");
@@ -153,9 +154,16 @@ function leagueForm(ctx, auctionStarted) {
         el("input", { type: "number", name: "roster", value: league.rosterSize, min: 3, max: 20 }))),
       el("div", { style: "flex:1;min-width:90px" }, el("label.field", "Titolari",
         el("input", { type: "number", name: "lineup", value: league.lineupSize, min: 1, max: 15 }))),
-      el("div", { style: "flex:1;min-width:110px" }, el("label.field", "Secondi asta",
+      el("div", { style: "flex:1;min-width:110px" }, el("label.field", "Secondi rilancio",
         el("input", { type: "number", name: "secs", value: league.bidSeconds, min: 5, max: 120 }))),
+      el("div", { style: "flex:1;min-width:110px" }, el("label.field", "Secondi chiamata",
+        el("input", { type: "number", name: "turnsecs", value: league.turnSeconds || 60, min: 10, max: 300 }))),
     ),
+
+    el("p.small.mute-2", { style: "margin:0" },
+      "«Secondi rilancio» è quanto dura un lotto, e riparte da capo a ogni offerta. "
+      + "«Secondi chiamata» è quanto tempo hai per scegliere quando tocca a te: "
+      + "scaduto quello, il turno passa al successivo."),
 
     auctionStarted && el("div.notice.warn",
       "L'asta è già iniziata: abbassare i crediti o la rosa può mandare qualcuno in negativo. "

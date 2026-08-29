@@ -9,16 +9,53 @@ Sito completamente statico: nessun server da mantenere, gira su GitHub Pages.
 
 ---
 
-## Come si gioca
+## Come si svolge
 
-1. **Asta** — ognuno parte con 500 crediti. A turno si chiama un giocatore (base 1 credito)
-   e si rilancia a tempo; chi offre di più se lo prende. Ogni scacchista appartiene a una
-   sola persona. Il sistema non ti lascia mai spendere tutto: tiene da parte 1 credito per
-   ogni casella di rosa ancora vuota.
-2. **Formazione** — prima di ogni Titled Tuesday scegli i titolari, ordini la panchina e
-   nomini il **capitano** (punti ×2). Se un titolare non gioca il torneo, entra il primo
-   panchinaro che invece l'ha giocato.
-3. **Punti** — a torneo finito si scarica la classifica vera e si calcolano i fantapunti.
+Il gioco ha due tempi con esigenze opposte, come nel fantacalcio vero.
+
+**L'asta è un evento sincrono.** Serve che siate collegati tutti insieme: i lotti
+durano una ventina di secondi. Funziona sia in presenza sia a distanza, ma a una
+condizione — **ognuno deve avere il proprio dispositivo**, perché rilanciare è
+legato al proprio account. Non ci si passa un portatile.
+
+La configurazione migliore è tutti nella stessa stanza, ognuno col telefono. In
+videochiamata è identico. Ordine di grandezza: in 4 con rosa da 8 sono 32 lotti,
+cioè **una mezz'ora scarsa**.
+
+**La stagione è asincrona.** Formazioni, giornate e classifica vivono su
+settimane: ognuno fa la sua quando gli pare, nessuno aspetta nessuno.
+
+### Il giro completo
+
+1. **Crei la lega** e mandi il link. Chi lo apre entra con Google e finisce in
+   **sala d'attesa**: si vede chi è collegato, ma non si può ancora comprare
+   niente.
+2. **Dai il via all'asta** quando ci siete. A turno si chiama un giocatore —
+   `turnSeconds` per scegliere, poi il turno passa da solo al successivo, così
+   una persona distratta non congela la serata. Chi chiama parte da 1 credito ed
+   è il primo offerente; ogni rilancio rimette il cronometro a `bidSeconds`.
+3. **L'asta si chiude da sola** quando tutte le rose sono piene.
+4. **Ogni martedì**: apri la giornata scegliendo il Titled Tuesday, ognuno
+   schiera, tu chiudi gli schieramenti prima del torneo e a torneo finito premi
+   *Scarica risultati e calcola*. La classifica si aggiorna per tutti.
+
+### Perché non ci si ruba i giocatori di notte
+
+Tre protezioni, tutte nate da buchi veri:
+
+- **Sala d'attesa.** Prima la lega nasceva con l'asta già aperta: bastava aprire
+  il link mentre gli altri dormivano per portarsi via il migliore a 1 credito.
+- **Timer di chiamata.** Prima solo i rilanci avevano un tempo. Se toccava a
+  qualcuno che aveva il telefono in tasca, l'asta si bloccava all'infinito.
+  Ora il turno scade, e chiunque può comunque passare la mano a mano.
+- **Presenza.** Un pallino dice chi è davvero collegato, così sai se ha senso
+  aspettare qualcuno.
+
+E perché 20 secondi passano in fretta, quando si apre un lotto arrivano **suono,
+vibrazione e titolo lampeggiante** nella scheda. Si spengono col pulsante
+🔔 durante l'asta.
+
+## Come si gioca
 
 ### Punteggi
 
@@ -54,7 +91,15 @@ python tools/devserver.py
 
 Poi apri <http://localhost:8100>. È un normale server statico, ma manda
 `Cache-Control: no-store`: senza quello il browser tiene in cache i moduli ES e
-continui a eseguire il codice di prima dopo ogni modifica. Funziona tutto — asta compresa — ma i dati restano
+continui a eseguire il codice di prima dopo ogni modifica.
+
+Con Firebase configurato l'app chiede il login anche in locale. Per provare
+l'asta in due schede senza autenticarsi, aggiungi `?local` **prima** dell'hash:
+
+    http://localhost:8100/?local
+
+Si torna alla modalità locale (localStorage + BroadcastChannel), e due schede
+dello stesso browser si sincronizzano davvero. Funziona tutto — asta compresa — ma i dati restano
 in questo browser: il link d'invito non raggiunge nessun altro. Per giocare davvero
 serve il passo qui sotto.
 

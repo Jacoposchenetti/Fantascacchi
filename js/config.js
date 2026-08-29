@@ -15,7 +15,15 @@ export const FIREBASE_CONFIG = {
   appId: "1:156601469530:web:fe6a22ac1b74e735b56663",
 };
 
-export const HAS_FIREBASE = Boolean(FIREBASE_CONFIG.apiKey);
+/**
+ * Aggiungendo ?local all'URL si forza la modalita' locale anche con Firebase
+ * configurato: comodo per provare l'asta in due schede senza autenticarsi.
+ * Il parametro va prima dell'hash, es. http://localhost:8100/?local#/
+ */
+const FORCE_LOCAL = typeof location !== "undefined"
+  && new URLSearchParams(location.search).has("local");
+
+export const HAS_FIREBASE = Boolean(FIREBASE_CONFIG.apiKey) && !FORCE_LOCAL;
 
 /**
  * Metodi di accesso attivi sul progetto Firebase.
@@ -37,7 +45,12 @@ export const DEFAULTS = {
   rosterSize: 8,     // giocatori in rosa
   lineupSize: 5,     // titolari schierati ogni giornata
   bidSeconds: 20,    // durata di un lotto d'asta, si azzera a ogni rilancio
+  turnSeconds: 60,   // tempo per chiamare quando tocca a te, poi si salta
 };
+
+/** Un partecipante e' "online" se ha dato un segno di vita di recente. */
+export const PRESENCE_TTL = 45 * 1000;
+export const PRESENCE_BEAT = 20 * 1000;
 
 /**
  * Punteggi. Modificabili per lega dalle impostazioni.

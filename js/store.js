@@ -18,9 +18,10 @@ import { shortId } from "./ui.js";
 const LS_ME = "fsc:me";
 const LS_LEAGUE = (id) => `fsc:league:${id}`;
 const LS_MDS = (id) => `fsc:mds:${id}`;
+const LS_PRES = (id) => `fsc:presence:${id}`;
 
 /** Scheletro di una lega nuova. */
-export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize, bidSeconds }) {
+export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize, bidSeconds, turnSeconds }) {
   const id = shortId(6);
   return {
     id,
@@ -31,10 +32,16 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
     rosterSize: rosterSize ?? DEFAULTS.rosterSize,
     lineupSize: lineupSize ?? DEFAULTS.lineupSize,
     bidSeconds: bidSeconds ?? DEFAULTS.bidSeconds,
-    phase: "auction",
+    turnSeconds: turnSeconds ?? DEFAULTS.turnSeconds,
+    // Si parte in sala d'attesa: l'asta comincia solo quando l'admin da' il via,
+    // altrimenti il primo che apre il link puo' comprare a 1 credito da solo.
+    phase: "lobby",
     members: { [uid]: { uid, name: userName, joinedAt: Date.now(), isAdmin: true } },
     roster: {},
-    auction: { status: "idle", playerId: null, bid: 0, bidderUid: null, endsAt: 0, turnIdx: 0 },
+    auction: {
+      status: "idle", playerId: null, bid: 0, bidderUid: null,
+      endsAt: 0, turnIdx: 0, turnEndsAt: 0,
+    },
     customPlayers: {},
   };
 }
@@ -168,6 +175,16 @@ function localAdapter() {
       const all = readJSON(key, {});
       if (!all[mdId]) throw new Error("Giornata non trovata");
       all[mdId].lineups = { ...(all[mdId].lineups || {}), [uid]: { ...lineup, savedAt: Date.now() } };
+      writeJSON(key, all);
+      broadcast(key);
+    },
+
+    watchPresence(id, cb) { return watch(LS_PRES(id), (v) => cb(v || {})); },
+
+    async touchPresence(id, uid) {
+      const key = LS_PRES(id);
+      const all = readJSON(key, {});
+      all[uid] = Date.now();
       writeJSON(key, all);
       broadcast(key);
     },
