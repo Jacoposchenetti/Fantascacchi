@@ -37,6 +37,7 @@ export default function auctionView(ctx) {
   if (!catalog) return el("div.card", "Carico il listone…");
 
   if (league.phase === "lobby") return lobbyView(ctx);
+  if (league.phase === "paused") return pausedStage(ctx);
   if (league.phase !== "auction") return closedStage(ctx);
 
   migrateTurnDeadline(ctx);
@@ -89,6 +90,107 @@ function handleAlerts(ctx) {
   }
   seen.lot = lot;
   seen.turn = turn;
+}
+
+/* -------------------------------- pausa -------------------------------- */
+
+/**
+ * Mette l'asta in pausa. Il turno NON avanza: alla ripresa chiama la stessa
+ * persona, con cronometro pieno e non con i secondi che le erano rimasti.
+ *
+ * Un lotto in corso viene annullato e il giocatore torna libero. Congelarlo
+ * sarebbe peggio: chi era al comando resterebbe appeso a un'offerta per
+ * mezz'ora, e alla ripresa i secondi residui diventerebbero un vantaggio
+ * arbitrario.
+ */
+async function pauseAuction(ctx) {
+  const a = ctx.league.auction || {};
+  const running = a.status === "running" && a.playerId;
+  const name = running ? (ctx.catalog.map.get(a.playerId)?.name || a.playerId) : null;
+
+  const ok = await confirmDialog(
+    "Mettere l'asta in pausa?",
+    running
+      ? `Il lotto su ${name} viene annullato e nessuno paga: alla ripresa `
+        + "tornerà a chiamare chi aveva la mano."
+      : "I cronometri si fermano. Alla ripresa il turno riparte da capo "
+        + "per chi ha la mano adesso.",
+    "Metti in pausa",
+  );
+  if (!ok) return;
+
+  await ctx.mutate((lg) => {
+    if (lg.phase !== "auction") return null;
+    const au = lg.auction || {};
+    const released = au.status === "running" ? au.playerId : null;
+    lg.phase = "paused";
+    lg.auction = {
+      ...au,
+      status: "idle", playerId: null, bid: 0, bidderUid: null, endsAt: 0,
+      turnEndsAt: 0,                  // fermo: nessun conto alla rovescia attivo
+      // turnIdx resta com'e': la mano non si perde per una pausa.
+      pausedBy: ctx.uid,
+      pausedAt: Date.now(),
+      releasedPlayer: released,
+    };
+    return lg;
+  });
+}
+
+async function resumeAuction(ctx) {
+  await ctx.mutate((lg) => {
+    if (lg.phase !== "paused") return null;
+    lg.phase = "auction";
+    lg.auction = {
+      ...lg.auction,
+      status: "idle", playerId: null, bid: 0, bidderUid: null, endsAt: 0,
+      turnEndsAt: nextTurnDeadline(lg),
+      pausedBy: null, pausedAt: 0, releasedPlayer: null,
+    };
+    return lg;
+  });
+}
+
+function pausedStage(ctx) {
+  const { league } = ctx;
+  const a = league.auction || {};
+  const turn = nominator(league);
+  const freed = a.releasedPlayer ? ctx.catalog.map.get(a.releasedPlayer) : null;
+
+  return el("div.stack",
+    el("div.card.card-hi.stack", { style: "text-align:center" },
+      el("span.badge.badge-red", { style: "margin:0 auto" }, "In pausa"),
+      el("h2", "Asta in pausa"),
+      el("p.muted.small", { style: "margin:0" },
+        a.pausedBy ? `Messa in pausa da ${memberName(league, a.pausedBy)}.` : "",
+        " I cronometri sono fermi: nessuno può chiamare o rilanciare."),
+
+      freed && el("div.notice",
+        el("strong", freed.name), " era all'asta: è tornato libero e nessuno ha pagato."),
+
+      turn && el("p.muted.small", { style: "margin:0" },
+        "Alla ripresa chiama ", el("strong", memberName(league, turn)),
+        `, con ${league.turnSeconds || 60} secondi pieni.`),
+
+      ctx.isAdmin
+        ? el("button.btn.btn-primary.btn-lg", { onclick: () => resumeAuction(ctx) },
+            "Riprendi l'asta")
+        : el("p.muted", { style: "margin:0" },
+            "Riprende quando ",
+            el("strong", league.members?.[league.adminUid]?.name || "chi gestisce la lega"),
+            " la fa ripartire. Puoi lasciare aperta la pagina."),
+    ),
+    memberPanel(ctx),
+  );
+}
+
+/** Pulsanti che l'admin ha sempre sottomano durante l'asta. */
+function adminBar(ctx) {
+  if (!ctx.isAdmin) return null;
+  return el("button.btn.btn-ghost.btn-sm", {
+    style: "justify-self:center",
+    onclick: () => pauseAuction(ctx),
+  }, "⏸ Metti in pausa");
 }
 
 /* ------------------------------- il lotto ------------------------------ */
@@ -169,6 +271,8 @@ function lotStage(ctx, a) {
         }
       },
     }, "Annulla il lotto"),
+
+    adminBar(ctx),
   );
 }
 
@@ -332,6 +436,8 @@ function nominationStage(ctx) {
       style: "justify-self:center",
       onclick: () => skipTurn(ctx, true),
     }, "Salta il turno"),
+
+    adminBar(ctx),
   );
 }
 

@@ -34,8 +34,11 @@ settimane: ognuno fa la sua quando gli pare, nessuno aspetta nessuno.
    `turnSeconds` per scegliere, poi il turno passa da solo al successivo, così
    una persona distratta non congela la serata. Chi chiama parte da 1 credito ed
    è il primo offerente; ogni rilancio rimette il cronometro a `bidSeconds`.
-3. **L'asta si chiude da sola** quando tutte le rose sono piene.
-4. **Ogni martedì**: apri la giornata scegliendo il Titled Tuesday, ognuno
+3. **Puoi metterla in pausa quando vuoi** (solo tu). I cronometri si fermano,
+   nessuno può chiamare o rilanciare, e alla ripresa la mano resta a chi ce
+   l'aveva — con il turno pieno, non con i secondi che gli erano avanzati.
+4. **L'asta si chiude da sola** quando tutte le rose sono piene.
+5. **Ogni martedì**: apri la giornata scegliendo il Titled Tuesday, ognuno
    schiera, tu chiudi gli schieramenti prima del torneo e a torneo finito premi
    *Scarica risultati e calcola*. La classifica si aggiorna per tutti.
 
@@ -50,6 +53,27 @@ Tre protezioni, tutte nate da buchi veri:
   Ora il turno scade, e chiunque può comunque passare la mano a mano.
 - **Presenza.** Un pallino dice chi è davvero collegato, così sai se ha senso
   aspettare qualcuno.
+
+### Chi comanda, e chi perde la mano
+
+Avviare, mettere in pausa e riprendere sono cose che può fare **solo l'admin**
+(chi ha creato la lega). *Salta il turno* invece è di tutti: serve a sbloccare
+chi si è distratto, e non richiede di disturbare l'admin.
+
+Il turno avanza solo quando ha senso che avanzi:
+
+| Cosa succede | La mano |
+|---|---|
+| Chiami un giocatore | resta tua mentre il lotto corre |
+| Il lotto viene assegnato | passa al successivo |
+| Il turno scade, o qualcuno lo salta | passa al successivo |
+| **Il lotto viene annullato** | **resta a chi stava chiamando** |
+| **L'asta va in pausa e riprende** | **resta a chi stava chiamando** |
+
+Annullare e mettere in pausa sono ripensamenti, non penalità: lo scacchista torna
+libero, nessuno paga, e chi aveva la mano rifà la sua scelta con il cronometro
+pieno. Se invece serve azzerare tutto, *Impostazioni → Zona pericolosa →
+Ricomincia l'asta da capo* riporta tutti in sala d'attesa e svuota le rose.
 
 E perché 20 secondi passano in fretta, quando si apre un lotto arrivano **suono,
 vibrazione e titolo lampeggiante** nella scheda. Si spengono col pulsante

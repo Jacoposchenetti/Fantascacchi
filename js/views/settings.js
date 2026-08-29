@@ -104,6 +104,19 @@ export default function settingsView(ctx) {
       ),
     ),
 
+    /* -------------------------- zona pericolosa ------------------------ */
+    ctx.isAdmin && el("section",
+      el("div.section-head", el("h2", "Zona pericolosa")),
+      el("div.card.stack-s", { style: "border-color:var(--red)" },
+        el("p.muted.small", { style: "margin:0" },
+          "Riporta tutti in sala d'attesa e svuota le rose, come se l'asta "
+          + "non fosse mai iniziata. I crediti tornano pieni. "
+          + "Giornate e punteggi già calcolati non vengono toccati."),
+        el("button.btn.btn-sm.btn-danger", { onclick: () => restartAuction(ctx) },
+          "Ricomincia l'asta da capo"),
+      ),
+    ),
+
     /* ------------------------------ dati ------------------------------- */
     el("section",
       el("div.section-head", el("h2", "Dati")),
@@ -230,6 +243,29 @@ function addPlayer(ctx) {
     }
     return form;
   });
+}
+
+async function restartAuction(ctx) {
+  const n = Object.keys(ctx.league.roster || {}).length;
+  const ok = await confirmDialog(
+    "Ricominciare l'asta da capo?",
+    n ? `I ${n} giocatori già assegnati tornano liberi e tutte le rose si svuotano. `
+        + "Non si può annullare."
+      : "Si torna in sala d'attesa.",
+    "Ricomincia",
+  );
+  if (!ok) return;
+  await ctx.mutate((lg) => {
+    lg.phase = "lobby";
+    lg.roster = {};
+    lg.auction = {
+      status: "idle", playerId: null, bid: 0, bidderUid: null,
+      endsAt: 0, turnIdx: 0, turnEndsAt: 0,
+      pausedBy: null, pausedAt: 0, releasedPlayer: null,
+    };
+    return lg;
+  });
+  toast("Asta azzerata: siete tornati in sala d'attesa", "ok");
 }
 
 async function exportLeague(ctx) {
