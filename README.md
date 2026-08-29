@@ -214,6 +214,24 @@ giornate ti lascia un buco in formazione.
 All'asta l'app mostra entrambe: *«8.4/11 quando gioca»* e *«presente 21/26»*,
 con la presenza colorata (verde sopra l'80%, rossa sotto il 55%).
 
+### Scheda giocatore
+
+Cliccando un giocatore — all'asta, nelle rose o in formazione — si apre una
+scheda con due grafici e i rating live:
+
+- **Rendimento nei Titled Tuesday**: una barra per torneo, e una tacca vuota
+  dove non ha giocato. Un grafico dei soli tornei giocati nasconderebbe proprio
+  la variabile che conta.
+- **Rating blitz nel tempo**: chess.com non pubblica lo storico dei rating, ma
+  dentro le partite di ogni torneo il rating del momento c'è. Il generatore lo
+  raccoglie, e ne esce una serie settimanale.
+- **Rating attuali** per bullet, blitz, rapid e daily, con massimo storico e
+  barra vittorie/patte/sconfitte: una sola chiamata live, messa in cache.
+
+Lo storico sta in `history` dentro il listone (chiavi corte: `d` data, `p`
+punti, `r` piazzamento, `e` rating). È il motivo per cui il file pesa ~180 KB
+invece di 40: compresso dal server sono una trentina.
+
 ### Rigenerarlo a mano
 
 ```bash

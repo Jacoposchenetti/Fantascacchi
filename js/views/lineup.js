@@ -8,6 +8,7 @@
 
 import { el, toast, empty, flag, spinner } from "../ui.js";
 import { rosterOf } from "../league.js";
+import { showPlayer } from "./player.js";
 
 const drafts = new Map();   // mdId -> {starters, bench, captain}
 let selectedMd = null;
@@ -186,7 +187,8 @@ function section(title, body) {
 
 function row(ctx, p, o) {
   if (!p) return null;
-  return el("div.pcard", { class: o.picked ? "is-picked" : "" },
+  return el("div.pcard.pcard-split", { class: o.picked ? "is-picked" : "" },
+    el("button.pcard-main", { type: "button", onclick: () => showPlayer(ctx, p) },
     p.avatar
       ? el("img.pav", { src: p.avatar, alt: "", loading: "lazy" })
       : el("div.pav", { style: "display:grid;place-items:center" }, "♟"),
@@ -200,7 +202,8 @@ function row(ctx, p, o) {
         el("span", `${p.rating} blitz`),
         o.benchIndex !== undefined && el("span", `${o.benchIndex + 1}ª riserva`)),
     ),
-    el("div.row", { style: "gap:.25rem;flex-wrap:nowrap" },
+    ),
+    el("div.row.pcard-side", { style: "gap:.25rem;flex-wrap:nowrap" },
       o.onUp !== undefined && el("div.stack-s", { style: "gap:.15rem" },
         el("button.btn.btn-sm.btn-ghost", {
           type: "button", disabled: !o.onUp, onclick: o.onUp,

@@ -141,6 +141,53 @@ export async function fetchPlayerResult(username, tournamentId) {
   };
 }
 
+/**
+ * Statistiche live per formato, per la scheda giocatore.
+ *
+ * chess.com NON espone lo storico dei rating: da qui si ottiene solo la foto
+ * di adesso (piu' il record e il massimo storico). La curva nel tempo la
+ * ricostruiamo altrove, dai rating letti nelle partite dei Titled Tuesday.
+ */
+export async function fetchStats(username) {
+  const u = String(username).toLowerCase();
+  const [prof, stats] = await Promise.all([
+    get(`/player/${u}`, { ttl: 24 * 60 * 60 * 1000 }),
+    get(`/player/${u}/stats`, { ttl: 30 * 60 * 1000 }),
+  ]);
+
+  const fmt = (key) => {
+    const s = stats?.[key];
+    if (!s?.last?.rating) return null;
+    const rec = s.record || {};
+    const played = (rec.win || 0) + (rec.loss || 0) + (rec.draw || 0);
+    return {
+      rating: s.last.rating,
+      best: s.best?.rating || null,
+      win: rec.win || 0,
+      loss: rec.loss || 0,
+      draw: rec.draw || 0,
+      played,
+      winRate: played ? Math.round(((rec.win || 0) / played) * 100) : null,
+    };
+  };
+
+  return {
+    username: prof?.username || u,
+    url: prof?.url || `https://www.chess.com/member/${u}`,
+    joined: prof?.joined || null,
+    lastOnline: prof?.last_online || null,
+    followers: prof?.followers || null,
+    fide: stats?.fide || null,
+    formats: {
+      bullet: fmt("chess_bullet"),
+      blitz: fmt("chess_blitz"),
+      rapid: fmt("chess_rapid"),
+      daily: fmt("chess_daily"),
+    },
+    tactics: stats?.tactics?.highest?.rating || null,
+  };
+}
+
 /** Profilo pubblico, usato quando si aggiunge un giocatore fuori listone. */
 export async function fetchProfile(username) {
   const u = String(username).trim().toLowerCase().replace(/^@/, "");

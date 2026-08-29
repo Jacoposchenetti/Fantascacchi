@@ -1,5 +1,6 @@
 import { el, empty, flag, presenceClass } from "../ui.js";
 import { members, rosterOf, budgetLeft, spentBy, memberName } from "../league.js";
+import { showPlayer } from "./player.js";
 
 /** Le rose di tutti, con quanto ha speso ciascuno. */
 export default function squadView(ctx) {
@@ -25,7 +26,8 @@ export default function squadView(ctx) {
         ),
         rows.length === 0
           ? el("div.card.card-tight.center.mute-2.small", "Rosa ancora vuota")
-          : el("div.plist", rows.map(({ player: p, price }) => el("div.pcard",
+          : el("div.plist", rows.map(({ player: p, price }) => el("div.pcard.pcard-split",
+            el("button.pcard-main", { type: "button", onclick: () => showPlayer(ctx, p) },
               p.avatar
                 ? el("img.pav", { src: p.avatar, alt: "", loading: "lazy" })
                 : el("div.pav", { style: "display:grid;place-items:center" }, "♟"),
@@ -40,11 +42,12 @@ export default function squadView(ctx) {
                   p.window ? el("span", { class: presenceClass(p) },
                     `presente ${p.events}/${p.window}`) : null),
               ),
-              el("div.pright",
-                el("div.pprice", price, el("span.small.mute-2", " cr")),
-                p.price ? el("div.small.mute-2", `valore ${p.price}`) : null,
-              ),
-            ))),
+            ),
+            el("div.pcard-side",
+              el("div.pprice", price, el("span.small.mute-2", " cr")),
+              p.price ? el("div.small.mute-2", `valore ${p.price}`) : null,
+            ),
+          ))),
       );
     }),
   );

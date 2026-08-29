@@ -20,6 +20,7 @@ import {
   members, memberName, nominator, auctionComplete, isOnline, nextTurnDeadline,
 } from "../league.js";
 import { alertNewLot, alertYourTurn, isMuted, setMuted, primeAudio, stopFlash } from "../alerts.js";
+import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
 
 let filter = "";
@@ -563,31 +564,43 @@ function playerPicker(ctx) {
 function playerRow(ctx, p, myTurn) {
   const { league } = ctx;
   const owner = ownerOf(league, p.id);
-  const clickable = myTurn && !owner;
 
-  return el(clickable ? "button.pcard" : "div.pcard", {
-    class: owner ? "is-owned" : "",
-    type: clickable ? "button" : null,
-    onclick: clickable ? () => nominate(ctx, p.id) : null,
-  },
-    p.avatar
-      ? el("img.pav", { src: p.avatar, alt: "", loading: "lazy" })
-      : el("div.pav", { style: "display:grid;place-items:center;font-size:1rem" }, "♟"),
-    el("div.pmain",
-      el("div.pname",
-        p.title && el("span.title-tag", { class: titleClass(p.title) }, p.title),
-        el("span", p.name)),
-      el("div.pmeta",
-        flag(p.country) && el("span", flag(p.country)),
-        el("span", `${p.rating} blitz`),
-        p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
-        p.window ? el("span", { class: presenceClass(p) },
-          `presente ${p.events}/${p.window}`) : null,
-        owner ? el("span", { style: "color:var(--gold)" }, memberName(league, owner)) : null),
+  // Riga divisa in due comandi affiancati invece di un unico bottone:
+  // aprire la scheda e chiamare all'asta sono azioni diverse, e un
+  // <button> dentro un altro <button> non e' HTML valido.
+  return el("div.pcard.pcard-split", { class: owner ? "is-owned" : "" },
+    el("button.pcard-main", {
+      type: "button",
+      onclick: () => showPlayer(ctx, p, myTurn && !owner
+        ? el("button.btn.btn-primary.btn-block", {
+            onclick: () => { document.querySelector("#modal").close(); nominate(ctx, p.id); },
+          }, "Chiama all'asta")
+        : null),
+    },
+      p.avatar
+        ? el("img.pav", { src: p.avatar, alt: "", loading: "lazy" })
+        : el("div.pav", { style: "display:grid;place-items:center;font-size:1rem" }, "♟"),
+      el("div.pmain",
+        el("div.pname",
+          p.title && el("span.title-tag", { class: titleClass(p.title) }, p.title),
+          el("span", p.name)),
+        el("div.pmeta",
+          flag(p.country) && el("span", flag(p.country)),
+          el("span", `${p.rating} blitz`),
+          p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
+          p.window ? el("span", { class: presenceClass(p) },
+            `presente ${p.events}/${p.window}`) : null,
+          owner ? el("span", { style: "color:var(--gold)" }, memberName(league, owner)) : null),
+      ),
     ),
-    el("div.pright",
+
+    el("div.pcard-side",
       el("div.pprice", p.price),
-      el("div.small.mute-2", "base 1"),
+      myTurn && !owner
+        ? el("button.btn.btn-sm.btn-primary", {
+            onclick: () => nominate(ctx, p.id),
+          }, "Chiama")
+        : el("div.small.mute-2", "base 1"),
     ),
   );
 }

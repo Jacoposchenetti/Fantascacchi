@@ -61,11 +61,19 @@ export function toast(msg, kind = "") {
   }, kind === "err" ? 5200 : 3000);
 }
 
-/** Modale. `build(close)` restituisce il contenuto. */
-export function modal(build) {
+/**
+ * Modale. `build(close)` restituisce il contenuto.
+ * opts.wide: piu' larga, per contenuti con grafici o tabelle.
+ * opts.bare: senza imbottitura, per chi si disegna la propria testata.
+ * Le classi vanno impostate a ogni apertura, non solo aggiunte: la finestra
+ * di dialogo e' una sola e viene riusata da tutte le schermate.
+ */
+export function modal(build, opts = {}) {
   const dlg = $("#modal");
   const body = $("#modal-body");
   const close = () => dlg.close();
+  dlg.classList.toggle("modal-wide", Boolean(opts.wide));
+  dlg.classList.toggle("modal-bare", Boolean(opts.bare));
   render(body, build(close));
   dlg.showModal();
   return close;

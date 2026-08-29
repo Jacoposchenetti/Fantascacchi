@@ -153,11 +153,18 @@ def main():
             if p["points"] != prev_pts:
                 rank, prev_pts = seen, p["points"]
             a = agg.setdefault(p["username"], {"events": 0, "pts": 0.0,
-                                               "best": 9999, "placements": []})
+                                               "best": 9999, "history": []})
             a["events"] += 1
             a["pts"] += p["points"]
             a["best"] = min(a["best"], rank)
-            a["placements"].append(rank)
+            # Chiavi corte: 90 giocatori x 26 tornei finiscono in un file
+            # che il browser scarica a ogni avvio.
+            a["history"].append({
+                "d": date,
+                "p": p["points"],
+                "r": rank,
+                "e": rts.get(p["username"]),
+            })
         print(f"      {date}: {len(players)} giocatori", flush=True)
 
     if not agg:
@@ -206,6 +213,8 @@ def main():
             # perche' chi non gioca vale zero (o quanto la tua panchina).
             "expected": round((a["pts"] / a["events"]) * (a["events"] / window), 2),
             "bestPlacement": a["best"],
+            # Dal piu' vecchio al piu' recente: i grafici si leggono cosi'.
+            "history": sorted(a["history"], key=lambda h: h["d"]),
         })
         if i % 10 == 0:
             print(f"      {i}/{len(ranked)}", flush=True)

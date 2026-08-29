@@ -324,6 +324,108 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
 }
 .modal::backdrop { background: rgba(0,0,0,.65); backdrop-filter: blur(3px); }
 .modal-body { padding: 1.2rem; }
+.modal-wide { max-width: min(96vw, 720px); }
+.modal-bare .modal-body { padding: 0; }
+
+/* ---------------------------- scheda giocatore -------------------------- */
+
+.pc { display: grid; }
+
+.pc-head {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: .8rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--bg-2);
+  position: sticky; top: 0; z-index: 2;
+}
+.pc-av { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--surface-2); flex: none; }
+.pc-name { font: 800 1.15rem/1.15 var(--display); display: flex; align-items: center; gap: .4rem; }
+.pc-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-sub { font-size: .8rem; color: var(--text-mute); margin-top: .15rem; }
+
+.pc-close {
+  width: 34px; height: 34px; flex: none;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--text-dim);
+  font-size: .95rem; line-height: 1; cursor: pointer;
+}
+.pc-close:hover { color: var(--text); border-color: var(--gold-dim); }
+
+.pc-body { display: grid; gap: 1.1rem; padding: 1.1rem; }
+
+.pc-facts { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.pc-fact {
+  display: grid; gap: .1rem;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: .5rem .6rem;
+}
+.pc-fact-l { font: 700 .6rem/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--text-mute); }
+.pc-fact-v { font: 700 1rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.pc-fact-n { font-size: .68rem; color: var(--text-mute); }
+
+.pc-h { font: 700 .72rem/1 var(--font); letter-spacing: .07em; text-transform: uppercase; color: var(--text-mute); margin: 0 0 .55rem; }
+
+.pc-fmts { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+.pc-fmt {
+  display: grid; gap: .18rem;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: .55rem .65rem;
+}
+.pc-fmt-l { font: 700 .62rem/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--text-mute); }
+.pc-fmt-r { font: 700 1.25rem/1 var(--mono); color: var(--gold); font-variant-numeric: tabular-nums; }
+.pc-fmt-b { font-size: .66rem; color: var(--text-mute); font-family: var(--mono); }
+.pc-fmt-n { font-size: .66rem; color: var(--text-mute); }
+
+.pc-wdl { display: flex; height: 4px; border-radius: 2px; overflow: hidden; background: var(--surface-2); margin: .25rem 0 .1rem; }
+.pc-wdl > i { display: block; min-width: 0; }
+.wdl-w { background: var(--green); }
+.wdl-d { background: var(--text-mute); }
+.wdl-l { background: var(--red); }
+
+.pc-links { display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; margin-top: .6rem; }
+
+.pc-chart { background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: .8rem .9rem; }
+.pc-chart-h { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.pc-chart-h .pc-h { margin: 0; }
+.pc-chart-b { margin-top: .5rem; }
+
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .grid-base { stroke: var(--line-soft); stroke-width: 1.5; }
+/* Il testo scala col viewBox: a 8px diventava illeggibile sul telefono,
+   dove il grafico viene disegnato a circa 0,6 della larghezza nominale. */
+.chart .axis { fill: var(--text-mute); font: 500 11px var(--mono); }
+.chart .bar { fill: var(--gold-dim); }
+.chart .bar-best { fill: var(--gold); }
+.chart .absent { stroke: var(--text-mute); stroke-width: 1.5; opacity: .45; }
+.chart .line { fill: none; stroke: var(--gold); stroke-width: 1.8; stroke-linejoin: round; }
+.chart .area { fill: var(--gold); opacity: .10; stroke: none; }
+.chart .dot { fill: var(--gold); }
+.chart .dot-label { fill: var(--gold); font-weight: 600; }
+
+/* ------------------------- righe giocatore divise ----------------------- */
+
+/* La riga ospita due comandi affiancati: aprire la scheda e agire.
+   Il padding si sposta sui figli, altrimenti l'area cliccabile
+   non arriva ai bordi. */
+.pcard-split { display: flex; align-items: stretch; gap: 0; padding: 0; }
+
+.pcard-main {
+  display: grid; grid-template-columns: auto 1fr;
+  align-items: center; gap: .7rem;
+  flex: 1; min-width: 0;
+  padding: .6rem .75rem;
+  background: transparent; border: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.pcard-main:hover { background: var(--surface-2); }
+
+.pcard-side {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  gap: .25rem; padding: .6rem .75rem .6rem .4rem; flex: none; text-align: right;
+}
+.pcard-side.row { flex-direction: row; align-items: center; }
 
 .notice {
   border-left: 3px solid var(--gold); background: var(--bg-2);
