@@ -94,9 +94,21 @@ function localAdapter() {
 
   return {
     mode: "local",
+    // In locale non c'e' nessun login: l'identita' e' un uid casuale
+    // salvato nel browser. I metodi di autenticazione esistono comunque
+    // perche' l'app possa trattare i due adapter allo stesso modo.
+    needsAuth: false,
+    canGoogle: false,
+    canAnonymous: false,
+
     get me() { return me; },
 
     async init() { return me; },
+
+    onAuthChange() { return () => {}; },
+    async signInWithGoogle() { /* niente da fare in locale */ },
+    async signInAnon() { /* niente da fare in locale */ },
+    async signOut() { /* niente da fare in locale */ },
 
     async setName(name) {
       me = { ...me, name };

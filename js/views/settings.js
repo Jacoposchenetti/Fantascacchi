@@ -81,6 +81,29 @@ export default function settingsView(ctx) {
       ),
     ),
 
+    /* ----------------------------- account ----------------------------- */
+    store.needsAuth && el("section",
+      el("div.section-head", el("h2", "Account")),
+      el("div.card.stack-s",
+        el("div.spread",
+          el("div",
+            el("strong", store.me.name),
+            store.me.email && el("div.small.mute-2", store.me.email),
+            store.me.anonymous && el("div.small", { style: "color:var(--red)" },
+              "Accesso anonimo: se svuoti il browser perdi la rosa.")),
+          store.me.photo && el("img.pav", { src: store.me.photo, alt: "" })),
+        el("button.btn.btn-sm.btn-ghost", {
+          onclick: async () => {
+            if (await confirmDialog("Uscire dall'account?",
+              "Potrai rientrare con lo stesso account e ritrovare le tue leghe.", "Esci")) {
+              await store.signOut();
+              ctx.go("#/");
+            }
+          },
+        }, "Esci"),
+      ),
+    ),
+
     /* ------------------------------ dati ------------------------------- */
     el("section",
       el("div.section-head", el("h2", "Dati")),

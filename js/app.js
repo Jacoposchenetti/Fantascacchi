@@ -12,6 +12,7 @@ import { getStore } from "./store.js";
 import { loadCatalog, isAdmin as isAdminOf, inviteLink } from "./league.js";
 
 import homeView from "./views/home.js";
+import loginView from "./views/login.js";
 import joinView from "./views/join.js";
 import auctionView from "./views/auction.js";
 import squadView from "./views/squad.js";
@@ -38,6 +39,7 @@ const state = {
   loading: false,
   error: null,
   unsubs: [],
+  subscribedTo: null,
 };
 
 /* -------------------------------- router ------------------------------- */
@@ -151,7 +153,7 @@ function restoreFocus(snap) {
 function renderChrome() {
   const bar = $("#topbar");
   const inLeague = state.route.name === "league" && state.league;
-  bar.hidden = !inLeague && state.route.name !== "join";
+  bar.hidden = !isAuthed() || (!inLeague && state.route.name !== "join");
 
   const tabsBox = $("#tabs");
   const invite = $("#btn-invite");
@@ -183,7 +185,9 @@ function renderApp() {
   renderChrome();
 
   try {
-    if (state.route.name === "home") {
+    if (!isAuthed()) {
+      render(root, loginView(buildCtxLite(), state.route.leagueId));
+    } else if (state.route.name === "home") {
       render(root, homeView(buildCtxLite()));
     } else if (state.route.name === "join") {
       render(root, joinView(buildCtxLite(), state.route.leagueId));
@@ -214,22 +218,42 @@ function renderApp() {
 
 /** Contesto ridotto per le viste che non hanno una lega caricata. */
 function buildCtxLite() {
+  // Nella schermata di login `me` e' ancora null: niente accessi ciechi a .uid.
   const me = state.store.me;
-  return { store: state.store, me, uid: me.uid, go, refresh: renderApp };
+  return { store: state.store, me, uid: me?.uid || null, go, refresh: renderApp };
 }
 
 /* -------------------------------- avvio -------------------------------- */
 
-async function onRouteChange() {
-  const next = parseHash();
-  const changedLeague = next.leagueId !== state.route.leagueId || next.name !== state.route.name;
-  state.route = next;
+/** C'e' una sessione utilizzabile? In locale sempre; su Firebase solo dopo il login. */
+function isAuthed() {
+  return !state.store.needsAuth || Boolean(state.store.me);
+}
 
-  if (next.name === "league" && changedLeague) {
-    await subscribeLeague(next.leagueId);
+async function onRouteChange() {
+  state.route = parseHash();
+
+  // Senza sessione non si legge nulla da Firestore: si mostra il login.
+  if (!isAuthed()) {
+    unsubscribeAll();
+    state.subscribedTo = null;
+    state.league = null;
+    renderApp();
     return;
   }
-  if (next.name !== "league") unsubscribeAll();
+
+  if (state.route.name === "league") {
+    // Confrontare le rotte non basterebbe: dopo il login la rotta e' la
+    // stessa di prima, ma la sottoscrizione non era mai partita.
+    if (state.subscribedTo !== state.route.leagueId) {
+      state.subscribedTo = state.route.leagueId;
+      await subscribeLeague(state.route.leagueId);
+      return;
+    }
+  } else {
+    unsubscribeAll();
+    state.subscribedTo = null;
+  }
   renderApp();
 }
 
@@ -244,6 +268,9 @@ async function main() {
     return;
   }
   window.addEventListener("hashchange", onRouteChange);
+  // Login e logout devono rieseguire il routing: e' cosi' che chi arriva
+  // da un link d'invito ci finisce sopra subito dopo essersi autenticato.
+  state.store.onAuthChange(() => { onRouteChange(); });
   await onRouteChange();
 
   if (state.store.mode === "local") {

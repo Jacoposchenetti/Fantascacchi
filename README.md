@@ -47,10 +47,12 @@ Le regole stanno in `js/config.js` (`SCORING`) e si possono cambiare a piacere.
 I moduli ES non funzionano da `file://`, serve un server:
 
 ```bash
-python -m http.server 8099
+python tools/devserver.py
 ```
 
-Poi apri <http://localhost:8099>. Funziona tutto — asta compresa — ma i dati restano
+Poi apri <http://localhost:8100>. È un normale server statico, ma manda
+`Cache-Control: no-store`: senza quello il browser tiene in cache i moduli ES e
+continui a eseguire il codice di prima dopo ogni modifica. Funziona tutto — asta compresa — ma i dati restano
 in questo browser: il link d'invito non raggiunge nessun altro. Per giocare davvero
 serve il passo qui sotto.
 
@@ -61,25 +63,35 @@ serve il passo qui sotto.
 
 ## Firebase — stato della configurazione
 
-Il progetto **`fantascacchi-cdcca`** è già collegato. Fatto via CLI:
+Progetto **`fantascacchi-cdcca`**, collegato via CLI:
 
-- [x] App web registrata, config incollata in [`js/config.js`](js/config.js)
+- [x] App web registrata, config in [`js/config.js`](js/config.js)
 - [x] API Cloud Firestore abilitata
 - [x] Database Firestore creato (`(default)`, regione `eur3` — Europa)
 - [x] Regole di [`firestore.rules`](firestore.rules) compilate e pubblicate
-- [ ] **Accesso anonimo** — va attivato a mano dalla console
+- [x] Accesso con **Google** attivo
 
-L'ultimo punto è l'unico che la CLI non sa fare: i provider di accesso si
-configurano solo dalla console (o via API Identity Platform con un service
-account). Sono tre clic:
+### Perché Google e non l'accesso anonimo
 
-<https://console.firebase.google.com/project/fantascacchi-cdcca/authentication/providers>
+Con l'accesso anonimo l'identità vive solo in quel browser: svuotare i dati o
+passare dal telefono al portatile **fa perdere la rosa**, perché cambia l'uid.
+Con Google l'uid è stabile ovunque, quindi la squadra ti segue. Il prezzo è che
+serve un account Google — cosa che praticamente tutti hanno.
 
-→ **Inizia** → **Anonimo** → **Attiva** → **Salva**.
+Se vuoi riattivare anche l'anonimo: abilitalo in console
+(Authentication → Sign-in method → Anonimo) e metti `anonymous: true` nel blocco
+`AUTH` di [`js/config.js`](js/config.js). Il pulsante compare da solo.
 
-Serve perché gli amici entrino scrivendo solo il nome, senza registrarsi.
-Finché è spento l'app se ne accorge da sola, lo scrive in console e ripiega
-sulla modalità locale invece di rompersi.
+### Domini autorizzati
+
+Google rifiuta l'accesso da domini non elencati. `localhost` c'è di default, ma
+**ogni dominio pubblico va aggiunto a mano**:
+
+Authentication → Settings → Domini autorizzati → aggiungi
+`jacoposchenetti.github.io`
+
+Senza quel passo il pulsante restituisce `auth/unauthorized-domain` (l'app lo
+traduce in un messaggio leggibile).
 
 ### Rideployare le regole
 

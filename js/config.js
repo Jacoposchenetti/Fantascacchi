@@ -17,6 +17,20 @@ export const FIREBASE_CONFIG = {
 
 export const HAS_FIREBASE = Boolean(FIREBASE_CONFIG.apiKey);
 
+/**
+ * Metodi di accesso attivi sul progetto Firebase.
+ * Devono corrispondere a Authentication > Sign-in method nella console:
+ * mostrare un pulsante per un provider spento porta solo a un errore.
+ *
+ * Nota: con `anonymous` l'identita' vive solo in quel browser, quindi
+ * svuotare i dati o cambiare dispositivo fa perdere la rosa. Con Google
+ * l'uid e' stabile ovunque.
+ */
+export const AUTH = {
+  google: true,
+  anonymous: false,
+};
+
 /** Valori predefiniti di una nuova lega. */
 export const DEFAULTS = {
   budget: 500,       // crediti a testa per l'asta
