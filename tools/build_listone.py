@@ -5,7 +5,7 @@ con prezzi derivati da dati REALI di chess.com (rating blitz + rendimento
 nei Titled Tuesday recenti).
 
 Uso:
-    python tools/build_listone.py [--events 6] [--top 90]
+    python tools/build_listone.py [--events 26] [--top 90] [--min-events 3]
 
 Perche' esiste: gli ID dei Titled Tuesday hanno un suffisso numerico opaco
 (es. ...-august-25-2026-31064127), quindi non sono costruibili da una data.
@@ -116,8 +116,11 @@ def final_standings(tid, total_rounds=11):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--events", type=int, default=6,
-                    help="quanti Titled Tuesday recenti aggregare")
+    ap.add_argument("--events", type=int, default=26,
+                    help="quanti Titled Tuesday aggregare (26 ~ sei mesi)")
+    ap.add_argument("--min-events", type=int, default=3,
+                    help="presenze minime per finire nel listone: sotto, "
+                         "la media e' troppo rumorosa per fidarsi")
     ap.add_argument("--top", type=int, default=90,
                     help="quanti giocatori tenere nel listone")
     ap.add_argument("--budget", type=int, default=500)
@@ -134,12 +137,15 @@ def main():
     print(f"[2/4] Scarico le classifiche finali...", flush=True)
     agg = {}      # username -> stats aggregate
     ratings = {}  # username -> ultimo rating blitz visto
+    window = 0    # tornei effettivamente scaricati: e' il denominatore
+                  # della presenza, quindi va contato, non assunto
     for tid, date in events:
         players, rts = final_standings(tid)
         if not players:
             print(f"      ! nessuna classifica per {tid}", flush=True)
             continue
         ratings.update(rts)
+        window += 1
         # ranking con pari merito standard (1,2,2,4)
         rank, prev_pts, seen = 0, None, 0
         for p in players:
@@ -158,10 +164,15 @@ def main():
         print("ERRORE: nessun dato aggregato", file=sys.stderr)
         return 1
 
-    # Preselezione: chi ha giocato di piu' e segnato di piu'
+    # Preselezione per VALORE ATTESO a giornata: media sui tornei giocati
+    # moltiplicata per quanto spesso si presenta. Ordinare per sole presenze
+    # nascondeva la variabile invece di misurarla.
+    eligible = {u: a for u, a in agg.items() if a["events"] >= args.min_events}
+    if not eligible:
+        eligible = agg
     ranked = sorted(
-        agg.items(),
-        key=lambda kv: (kv[1]["events"], kv[1]["pts"] / max(kv[1]["events"], 1)),
+        eligible.items(),
+        key=lambda kv: (kv[1]["pts"] / kv[1]["events"]) * (kv[1]["events"] / window),
         reverse=True,
     )[: args.top]
 
@@ -186,7 +197,14 @@ def main():
             "avatar": (prof or {}).get("avatar") or "",
             "rating": blitz,
             "events": a["events"],
+            "window": window,
+            # Media sui SOLI tornei giocati: dice quanto e' forte quando c'e'.
             "avgPoints": round(a["pts"] / a["events"], 2),
+            # Quota di tornei a cui si e' presentato, nella finestra osservata.
+            "presence": round(a["events"] / window, 3),
+            # Valore atteso per giornata: e' questo che finisce in classifica,
+            # perche' chi non gioca vale zero (o quanto la tua panchina).
+            "expected": round((a["pts"] / a["events"]) * (a["events"] / window), 2),
             "bestPlacement": a["best"],
         })
         if i % 10 == 0:
@@ -195,12 +213,14 @@ def main():
     print("[4/4] Calcolo i prezzi...", flush=True)
     rmin = min(p["rating"] for p in players)
     rmax = max(p["rating"] for p in players)
-    fmax = max(p["avgPoints"] for p in players) or 1
+    emax = max(p["expected"] for p in players) or 1
     span = max(rmax - rmin, 1)
     for p in players:
         rating_n = (p["rating"] - rmin) / span
-        form_n = p["avgPoints"] / fmax
-        power = 0.65 * rating_n + 0.35 * form_n
+        # Non piu' la media grezza: chi salta meta' dei martedi' costa meno,
+        # perche' meta' delle giornate ti lascia con un buco in formazione.
+        exp_n = p["expected"] / emax
+        power = 0.45 * rating_n + 0.55 * exp_n
         # esponente > 1: i top costano sproporzionatamente di piu' (come il fantacalcio)
         p["price"] = int(round(6 + (power ** 1.7) * 144))
         p["power"] = round(power, 4)
@@ -211,6 +231,7 @@ def main():
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "source": "api.chess.com",
         "events": [{"id": t, "date": d} for t, d in events],
+        "window": window,
         "budget": args.budget,
         "players": players,
     }
@@ -219,8 +240,9 @@ def main():
     print(f"\nScritto {dest} ({len(players)} giocatori)")
     print("\nTop 12:")
     for p in players[:12]:
-        print(f"  {p['price']:>4}cr  {p['title']:<4} {p['name'][:28]:<28} "
-              f"{p['rating']} blitz  media {p['avgPoints']}/11")
+        print(f"  {p['price']:>4}cr  {p['title']:<4} {p['name'][:26]:<26} "
+              f"{p['rating']} blitz  media {p['avgPoints']:>4}/11  "
+              f"presenze {p['events']:>2}/{p['window']}  atteso {p['expected']:>4}")
     return 0
 
 

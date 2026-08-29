@@ -195,22 +195,47 @@ riscrivere gli URL: così ogni link d'invito regge anche il ricaricamento.
 
 ---
 
-## Aggiornare il listone
+## Il listone: due numeri, non uno
 
-I prezzi vengono da dati reali: rating blitz + rendimento negli ultimi Titled Tuesday.
-Per rigenerarli:
+Ogni giocatore porta **due misure separate**, perché rispondono a domande diverse:
+
+| Campo | Significa | Domanda a cui risponde |
+|---|---|---|
+| `avgPoints` | media sui soli tornei **giocati** | quanto è forte quando c'è? |
+| `presence` | quota di tornei a cui si è presentato | quanto spesso c'è? |
+| `expected` | `avgPoints × presence` | quanto ti rende **per giornata**? |
+
+Tenerle separate è la cosa giusta: una media di 9/11 costruita su due tornei
+su ventisei non è la stessa cosa di 8/11 su ventisei, ma un'unica colonna le
+farebbe sembrare simili. Il prezzo segue `expected` più il rating blitz
+(55/45), quindi chi salta metà dei martedì costa meno — perché metà delle
+giornate ti lascia un buco in formazione.
+
+All'asta l'app mostra entrambe: *«8.4/11 quando gioca»* e *«presente 21/26»*,
+con la presenza colorata (verde sopra l'80%, rossa sotto il 55%).
+
+### Rigenerarlo a mano
 
 ```bash
-python tools/build_listone.py --events 6 --top 90
+python tools/build_listone.py --events 26 --top 90
 ```
 
-Riscrive `data/listone.json`. Vale la pena rifarlo ogni tanto (a inizio stagione, o se
-i prezzi cominciano a sembrare fuori scala).
+26 tornei sono circa sei mesi di Titled Tuesday. `--min-events 3` scarta chi ha
+troppe poche presenze perché la sua media significhi qualcosa.
 
-Serve qualcuno che non è in lista? **Impostazioni → Aggiungi un giocatore**, basta il suo
-username chess.com.
+### Aggiornamento automatico
 
----
+[`.github/workflows/listone.yml`](.github/workflows/listone.yml) lo rifà **ogni
+mercoledì mattina** e committa solo se i numeri sono cambiati. Ogni commit
+ridisegna anche il sito, quindi i prezzi restano allineati da soli.
+
+GitHub sospende i workflow programmati sui repository fermi da 60 giorni: se la
+lega va in letargo, riattivalo dalla scheda *Actions* o lancialo a mano con
+*Run workflow*.
+
+Serve qualcuno che non è in lista? **Impostazioni → Aggiungi un giocatore**,
+basta il suo username chess.com (per lui la presenza risulterà sconosciuta,
+perché non è passato dall'aggregazione).
 
 ## Com'è fatto
 

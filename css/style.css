@@ -331,6 +331,12 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
 }
 .notice.warn { border-left-color: var(--red); }
 
+/* Presenza: il colore dice a colpo d'occhio se e' un rischio.
+   Non e' l'accento della pagina, e' semaforo. */
+.pres-ok  { color: var(--green); }
+.pres-mid { color: var(--text-dim); }
+.pres-low { color: var(--red); }
+
 .pts-pos { color: var(--green); }
 .pts-neg { color: var(--red); }
 

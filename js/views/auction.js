@@ -14,7 +14,7 @@
    trova gia' cambiato e non fa nulla.
    --------------------------------------------------------------- */
 
-import { el, empty, flag, confirmDialog, modal } from "../ui.js";
+import { el, empty, flag, confirmDialog, modal, presenceClass } from "../ui.js";
 import {
   catalogList, ownerOf, ownedCount, budgetLeft, maxBid,
   members, memberName, nominator, auctionComplete, isOnline, nextTurnDeadline,
@@ -225,7 +225,9 @@ function lotStage(ctx, a) {
           " " + (p?.name || a.playerId)),
         el("div.muted.small",
           flag(p?.country), " ", p?.rating ? `${p.rating} blitz` : "",
-          p?.avgPoints ? ` · media ${p.avgPoints}/11` : ""),
+          p?.avgPoints ? ` · ${p.avgPoints}/11 quando gioca` : "",
+          p?.window ? el("span", { class: presenceClass(p) },
+            ` · presente ${p.events}/${p.window}`) : ""),
       ),
     ),
 
@@ -578,7 +580,9 @@ function playerRow(ctx, p, myTurn) {
       el("div.pmeta",
         flag(p.country) && el("span", flag(p.country)),
         el("span", `${p.rating} blitz`),
-        p.avgPoints ? el("span", `media ${p.avgPoints}/11`) : null,
+        p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
+        p.window ? el("span", { class: presenceClass(p) },
+          `presente ${p.events}/${p.window}`) : null,
         owner ? el("span", { style: "color:var(--gold)" }, memberName(league, owner)) : null),
     ),
     el("div.pright",

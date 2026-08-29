@@ -1,0 +1,49 @@
+# Rigenera data/listone.json dai Titled Tuesday piu' recenti.
+#
+# Serve perche' medie e presenze invecchiano: un giocatore che sei mesi fa
+# c'era sempre puo' aver smesso, e il prezzo deve seguirlo. Gira di mercoledi'
+# mattina, quando i risultati del martedi' sono ormai consolidati.
+#
+# Nota: GitHub sospende i workflow programmati sui repository fermi da 60
+# giorni. Se la lega resta inattiva a lungo, riattivalo dalla scheda Actions
+# oppure lancialo a mano con "Run workflow".
+
+name: Aggiorna il listone
+
+on:
+  schedule:
+    - cron: "0 6 * * 3"      # ogni mercoledi' alle 06:00 UTC
+  workflow_dispatch:          # e quando vuoi tu, dalla scheda Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: listone
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rigenera il listone
+        run: python tools/build_listone.py --events 26 --top 90
+
+      - name: Committa solo se e' cambiato qualcosa
+        run: |
+          if git diff --quiet -- data/listone.json; then
+            echo "Prezzi invariati: niente da committare."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/listone.json
+          git commit -m "Listone aggiornato: medie e presenze ricalcolate"
+          git push

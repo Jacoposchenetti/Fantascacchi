@@ -1,4 +1,4 @@
-import { el, empty, flag } from "../ui.js";
+import { el, empty, flag, presenceClass } from "../ui.js";
 import { members, rosterOf, budgetLeft, spentBy, memberName } from "../league.js";
 
 /** Le rose di tutti, con quanto ha speso ciascuno. */
@@ -36,7 +36,9 @@ export default function squadView(ctx) {
                 el("div.pmeta",
                   flag(p.country) && el("span", flag(p.country)),
                   el("span", `${p.rating} blitz`),
-                  p.avgPoints ? el("span", `media ${p.avgPoints}/11`) : null),
+                  p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
+                  p.window ? el("span", { class: presenceClass(p) },
+                    `presente ${p.events}/${p.window}`) : null),
               ),
               el("div.pright",
                 el("div.pprice", price, el("span.small.mute-2", " cr")),

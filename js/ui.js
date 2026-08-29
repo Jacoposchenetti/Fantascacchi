@@ -116,6 +116,14 @@ export function flag(code) {
   );
 }
 
+/** Classe di rischio per la presenza: sotto il 60% e' una scommessa. */
+export function presenceClass(p) {
+  if (!p || p.presence === undefined) return "";
+  if (p.presence >= 0.8) return "pres-ok";
+  if (p.presence >= 0.55) return "pres-mid";
+  return "pres-low";
+}
+
 export const fmtPts = (n) =>
   (n > 0 ? "+" : "") + (Math.round(n * 10) / 10).toString();
 
