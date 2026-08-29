@@ -11,6 +11,7 @@ import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
 import { scoreMatchday } from "../scoring.js";
 import { members, memberName } from "../league.js";
 import { lineupsFor, effectiveLineup, readyCount, dataLunga, quando } from "../season.js";
+import livePanel, { inDiretta, linkTorneo } from "./live.js";
 
 const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
 
@@ -93,16 +94,22 @@ function slotCard(ctx, slot) {
       `${nLineups}/${nMembers} formazioni pronte`,
       nEreditate > 0 ? ` · ${nEreditate} ereditate dalla giornata prima` : ""),
 
-    slot.status === "pending" && el("div.notice",
+    inDiretta(slot) && livePanel(ctx, slot),
+
+    slot.status === "pending" && !inDiretta(slot) && el("div.notice",
       "Il torneo si è giocato. I punteggi compaiono da soli non appena la "
       + "classifica è disponibile — di solito entro il mercoledì mattina."),
 
     res && scoreTable(ctx, slot, res),
 
-    slot.status === "open" && el("button.btn.btn-sm.btn-primary", {
-      style: "justify-self:start",
-      onclick: () => ctx.go(`#/l/${league.id}/formazione`),
-    }, "Metti la formazione"),
+    el("div.row",
+      slot.status === "open" && el("button.btn.btn-sm.btn-primary", {
+        onclick: () => ctx.go(`#/l/${league.id}/formazione`),
+      }, "Metti la formazione"),
+      slot.id && el("a.btn.btn-sm.btn-ghost", {
+        href: linkTorneo(slot), target: "_blank", rel: "noopener noreferrer",
+      }, "Il torneo su chess.com ↗"),
+    ),
   );
 }
 

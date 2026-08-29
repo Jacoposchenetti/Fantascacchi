@@ -59,15 +59,23 @@ function prettyLabel(iso) {
 
 /**
  * Ultimi Titled Tuesday disponibili, dal piu' recente.
- * @returns {Promise<Array<{id,date,label}>>}
+ * @param limit quanti restituirne
+ * @param includeLive guarda anche fra i tornei IN CORSO. Serve alla diretta:
+ *   durante il torneo l'evento non e' ancora fra i "finished", quindi
+ *   cercarlo solo li' non lo troverebbe mai.
  */
-export async function discoverTitledTuesdays(limit = 12) {
+export async function discoverTitledTuesdays(limit = 12, includeLive = false) {
   const found = new Map();
   for (const anchor of ANCHORS) {
     let data;
-    try { data = await get(`/player/${anchor}/tournaments`, { ttl: 30 * 60 * 1000 }); }
-    catch { continue; }
-    for (const t of data?.finished || []) {
+    try {
+      data = await get(`/player/${anchor}/tournaments`,
+        { ttl: includeLive ? 60 * 1000 : 30 * 60 * 1000 });
+    } catch { continue; }
+    const lists = includeLive
+      ? [...(data?.in_progress || []), ...(data?.finished || [])]
+      : (data?.finished || []);
+    for (const t of lists) {
       const id = String(t["@id"] || "").split("/").pop();
       const parsed = parseTitledTuesdayId(id);
       if (parsed) found.set(id, parsed);
@@ -185,6 +193,30 @@ export async function fetchStats(username) {
       daily: fmt("chess_daily"),
     },
     tactics: stats?.tactics?.highest?.rating || null,
+  };
+}
+
+/**
+ * Partite di un singolo turno, con quanti byte sono costate.
+ *
+ * Non passa dalla cache di `get`: in diretta il contenuto cambia a ogni
+ * minuto, e serve sapere il peso reale del trasferimento.
+ */
+export async function fetchRoundGames(tournamentId, round) {
+  // "no-cache" e non "no-store": si rivalida sempre, ma se il turno non e'
+  // cambiato il server puo' rispondere 304 e il corpo non viaggia. Il
+  // contatore dei byte resta quindi una stima per eccesso, mai per difetto.
+  const res = await fetch(`${API}/tournament/${tournamentId}/${round}/1`,
+    { headers: { Accept: "application/json" }, cache: "no-cache" });
+  if (!res.ok) return { games: [], players: [], bytes: 0, ok: false };
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { return { games: [], players: [], bytes: text.length, ok: false }; }
+  return {
+    games: data.games || [],
+    players: data.players || [],
+    bytes: new Blob([text]).size,
+    ok: true,
   };
 }
 
