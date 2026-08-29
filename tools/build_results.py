@@ -33,6 +33,58 @@ OUT = Path(__file__).resolve().parent.parent / "data" / "tt"
 # risultati e' ancora in corso o se e' finito e i dati non sono arrivati.
 DURATA_STIMATA_S = 3 * 60 * 60
 
+# Codici con cui chess.com chiude una partita patta. Tutto il resto che non
+# sia "win" e' una sconfitta (resigned, checkmated, timeout, abandoned...).
+PATTE = {"agreed", "repetition", "stalemate", "insufficient",
+         "50move", "timevsinsufficient"}
+
+LISTONE = Path(__file__).resolve().parent.parent / "data" / "listone.json"
+
+
+def ids_listone():
+    """Chi puo' finire in rosa: solo fra costoro ha senso cercare gli scontri."""
+    try:
+        d = json.loads(LISTONE.read_text(encoding="utf-8"))
+        return {p["id"] for p in d.get("players", [])}
+    except Exception:
+        return set()
+
+
+def head_to_head(tid, rounds, pool):
+    """
+    Partite fra due giocatori del listone, turno per turno.
+
+    Sono la base del bonus scontro diretto. Costa scaricare tutti i turni
+    invece del solo ultimo, ma sono una manciata di megabyte a settimana in
+    CI, e quello che resta nel file sono un paio di kilobyte: su ~1900
+    partite, quelle fra due giocatori del listone sono meno di un centinaio.
+    """
+    if not pool:
+        return []
+    out = []
+    for rnd in range(1, rounds + 1):
+        grp = get(f"{API}/tournament/{tid}/{rnd}/1")
+        time.sleep(0.15)
+        if not grp:
+            continue
+        for g in grp.get("games", []):
+            w = (g.get("white") or {}).get("username", "").lower()
+            b = (g.get("black") or {}).get("username", "").lower()
+            if w not in pool or b not in pool:
+                continue
+            wr = (g.get("white") or {}).get("result", "")
+            br = (g.get("black") or {}).get("result", "")
+            if wr == "win":
+                res = "w"
+            elif br == "win":
+                res = "b"
+            elif wr in PATTE or br in PATTE:
+                res = "d"
+            else:
+                continue          # partita annullata o esito non interpretabile
+            out.append([w, b, res, rnd])
+    return out
+
 
 def tournament_meta(tid):
     """Orari e dimensione del torneo, dal documento principale."""
@@ -50,7 +102,7 @@ def tournament_meta(tid):
     }
 
 
-def build_event(tid, date):
+def build_event(tid, date, pool):
     """Estratto di un torneo: solo cio' che serve a calcolare i fantapunti."""
     meta = tournament_meta(tid)
     if not meta:
@@ -68,9 +120,12 @@ def build_event(tid, date):
         # Coppia invece di oggetto: su 260 giocatori sono kilobyte risparmiati.
         standings[p["username"]] = [p["points"], rank]
 
+    duelli = head_to_head(tid, meta["rounds"], pool)
+
     return {
         "id": tid,
         "date": date,
+        "h2h": duelli,
         "name": meta["name"],
         "start": meta["start"],
         "finish": meta["finish"],
@@ -99,21 +154,24 @@ def main():
         print("ERRORE: nessun torneo trovato", file=sys.stderr)
         return 1
 
-    print("[2/3] Scarico solo quelli che mancano...", flush=True)
+    pool = ids_listone()
+    print(f"[2/3] Scarico solo quelli che mancano "
+          f"({len(pool)} giocatori nel listone per gli scontri)...", flush=True)
     nuovi = 0
     for tid, date in events:
         dest = OUT / f"{tid}.json"
         if dest.exists() and not args.force:
             print(f"      = {date}  gia' presente", flush=True)
             continue
-        ev = build_event(tid, date)
+        ev = build_event(tid, date, pool)
         if not ev:
             print(f"      ! {date}  classifica non disponibile", flush=True)
             continue
         dest.write_text(json.dumps(ev, ensure_ascii=False, separators=(",", ":")),
                         encoding="utf-8")
         nuovi += 1
-        print(f"      + {date}  {ev['played']} giocatori  "
+        print(f"      + {date}  {ev['played']} giocatori, "
+              f"{len(ev['h2h'])} scontri diretti  "
               f"({dest.stat().st_size // 1024} KB)", flush=True)
         time.sleep(0.2)
 
@@ -128,7 +186,7 @@ def main():
             "id": ev["id"], "date": ev["date"],
             "start": ev.get("start"), "finish": ev.get("finish"),
             "rounds": ev.get("rounds", 11), "played": ev.get("played", 0),
-            "total": ev.get("total", 0),
+            "total": ev.get("total", 0), "h2h": len(ev.get("h2h") or []),
         })
     index.sort(key=lambda e: e["date"], reverse=True)
 

@@ -1,10 +1,9 @@
 /* Classifica di stagione: somma delle giornate con risultati disponibili. */
 
 import { el, ptsClass } from "../ui.js";
-import { scoreLineup } from "../scoring.js";
 import { members } from "../league.js";
-import { effectiveLineup, dataBreve, dataLunga } from "../season.js";
-import { resultsMap } from "./matchdays.js";
+import { dataBreve, dataLunga } from "../season.js";
+import { scoreSlot } from "./matchdays.js";
 
 export default function standingsView(ctx) {
   const { league, plan, results, catalog, uid } = ctx;

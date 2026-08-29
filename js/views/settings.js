@@ -55,10 +55,16 @@ export default function settingsView(ctx) {
           kv(`Sotto ${SCORING.weakScoreMax} punti`, fmtPts(SCORING.weakScore)),
           kv("Capitano", `×${SCORING.captainMultiplier}`),
           kv("Non ha giocato", "entra la panchina"),
+          kv("Batte un avversario di lega", fmtPts(SCORING.duelWin)),
+          kv("Perde contro un avversario di lega", fmtPts(SCORING.duelLoss)),
+          kv("Patta fra i due", fmtPts(SCORING.duelDraw)),
         ),
         el("p.small.mute-2", { style: "margin:.8rem 0 0" },
           "I bonus piazzamento non si sommano: vale solo il più alto. ",
-          "Il capitano raddoppia solo se gioca davvero."),
+          "Il capitano raddoppia solo se gioca davvero. ",
+          "Lo scontro diretto scatta quando due scacchisti schierati da "
+          + "partecipanti diversi si incontrano al tavolo: se sono entrambi tuoi "
+          + "non conta niente."),
       ),
     ),
 

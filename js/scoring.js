@@ -105,6 +105,61 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
   };
 }
 
+/* ---------------------------- scontri diretti --------------------------- */
+
+/**
+ * Punteggio di una giornata per TUTTA la lega.
+ *
+ * Gli scontri diretti non si possono calcolare giocatore per giocatore:
+ * dipendono da chi hanno schierato gli altri. Serve quindi una passata
+ * sull'intera giornata, ed e' questa.
+ *
+ * @param {Map<string,object>} lineups  uid -> formazione valida
+ * @param {Map<string,object>} results  playerId -> risultato grezzo
+ * @param {Array} h2h  partite [bianco, nero, "w"|"b"|"d", turno]
+ * @returns {Map<string,{total,rows,duels}>}
+ */
+export function scoreMatchday(lineups, results, h2h = [], rules = SCORING, rounds = 11) {
+  const out = new Map();
+
+  // Chi e' sceso in campo per chi. Conta il giocatore EFFETTIVO, quindi
+  // anche il panchinaro entrato al posto di un assente.
+  const owner = new Map();
+  for (const [uid, lu] of lineups) {
+    const sc = scoreLineup(lu, results, rules, rounds);
+    out.set(uid, { total: sc.total, rows: sc.rows, duels: [] });
+    for (const r of sc.rows) {
+      if (!r.absent) owner.set(r.playerId, uid);
+    }
+  }
+
+  for (const [w, b, res] of h2h || []) {
+    const uw = owner.get(w);
+    const ub = owner.get(b);
+    // Serve che entrambi siano in campo, e per due persone diverse:
+    // due tuoi giocatori che si incontrano sono una partita di giro.
+    if (!uw || !ub || uw === ub) continue;
+
+    const esito = res === "w" ? [rules.duelWin, rules.duelLoss]
+      : res === "b" ? [rules.duelLoss, rules.duelWin]
+      : [rules.duelDraw, rules.duelDraw];
+
+    registra(out, uw, w, b, ub, esito[0], res === "d" ? "patta" : res === "w" ? "vinto" : "perso");
+    registra(out, ub, b, w, uw, esito[1], res === "d" ? "patta" : res === "b" ? "vinto" : "perso");
+  }
+
+  for (const v of out.values()) {
+    v.total = round1(v.total + v.duels.reduce((s, d) => s + d.pts, 0));
+  }
+  return out;
+}
+
+function registra(out, uid, mine, opp, oppUid, pts, esito) {
+  const e = out.get(uid);
+  if (!e) return;
+  e.duels.push({ playerId: mine, oppId: opp, oppUid, pts, esito });
+}
+
 /** Trasforma la classifica di chess.com nella mappa risultati dei propri giocatori. */
 export function resultsFromStandings(playerIds, standings, total) {
   const map = new Map();

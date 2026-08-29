@@ -8,9 +8,11 @@
    --------------------------------------------------------------- */
 
 import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
-import { scoreLineup } from "../scoring.js";
-import { members } from "../league.js";
+import { scoreMatchday } from "../scoring.js";
+import { members, memberName } from "../league.js";
 import { lineupsFor, effectiveLineup, readyCount, dataLunga, quando } from "../season.js";
+
+const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
 
 const STATI = {
   scored:   ["badge-green", "Punti assegnati"],
@@ -117,12 +119,15 @@ function scoreTable(ctx, slot, res) {
   return el("div.tablewrap",
     el("table",
       el("thead", el("tr",
-        el("th", "Partecipante"), el("th.num", "Fantapunti"), el("th"))),
+        el("th", "Partecipante"), el("th.num", "Scontri"),
+        el("th.num", "Fantapunti"), el("th"))),
       el("tbody", rows.map((r, i) => el("tr", { class: r.uid === ctx.uid ? "is-me" : "" },
         el("td",
           el("span.rankcell", { class: i < 3 ? `rank-${i + 1}` : "" }, `${i + 1}. `),
           r.name,
           r.missing && el("span.badge.badge-red", { style: "margin-left:.4rem" }, "No formazione")),
+        el("td.num", { class: ptsClass(duelSum(r)) },
+          r.detail?.duels?.length ? fmtPts(duelSum(r)) : "—"),
         el("td.num", { class: ptsClass(r.total) }, r.total.toFixed(1)),
         el("td", { style: "width:1%" }, !r.missing && el("button.btn.btn-sm.btn-ghost", {
           onclick: () => showDetail(ctx, r, slot),
@@ -172,6 +177,20 @@ function showDetail(ctx, row, slot) {
                 el("span.mono", { class: ptsClass(b.pts) }, fmtPts(b.pts))))),
       );
     })),
+
+    row.detail.duels?.length > 0 && el("div.stack-s",
+      el("h3", { style: "margin:.4rem 0 0" }, "Scontri diretti"),
+      row.detail.duels.map((d) => {
+        const mio = ctx.catalog.map.get(d.playerId);
+        const suo = ctx.catalog.map.get(d.oppId);
+        return el("div.card.card-tight.spread",
+          el("div",
+            el("strong", mio?.name || d.playerId),
+            el("span.muted.small", ` ha ${d.esito} contro `),
+            el("strong", suo?.name || d.oppId),
+            el("div.small.mute-2", `schierato da ${memberName(ctx.league, d.oppUid)}`)),
+          el("strong.mono", { class: ptsClass(d.pts) }, fmtPts(d.pts)));
+      })),
 
     el("div.spread", { style: "border-top:1px solid var(--line);padding-top:.6rem" },
       el("strong", "Totale"),

@@ -74,4 +74,11 @@ export const SCORING = {
   weakScoreMax: 4,
   captainMultiplier: 2,
   absent: 0,            // non ha giocato il torneo
+
+  // Scontro diretto: due scacchisti schierati da DUE partecipanti diversi
+  // che si incontrano al tavolo. Asimmetrico apposta, cosi' schierare i
+  // migliori conviene invece di nasconderli.
+  duelWin: 3,
+  duelLoss: -2,
+  duelDraw: 0,
 };

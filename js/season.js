@@ -191,7 +191,11 @@ async function fromStatic(id) {
     const standings = new Map(
       Object.entries(ev.standings || {}).map(([u, [p, r]]) => [u, { points: p, rank: r }]),
     );
-    return { standings, rounds: ev.rounds || 11, total: ev.total || standings.size, live: false };
+    return {
+      standings, h2h: ev.h2h || [],
+      rounds: ev.rounds || 11, total: ev.total || standings.size,
+      live: false,
+    };
   } catch {
     return null;
   }
@@ -208,7 +212,12 @@ async function fromLive(slot, onProgress) {
     const match = found.find((e) => e.date === slot.date);
     if (!match) return null;
     const st = await fetchStandings(match.id, onProgress);
-    return { standings: st.standings, rounds: 11, total: st.total, live: true, id: match.id };
+    // In diretta si legge solo l'ultimo turno, quindi gli scontri diretti
+    // non ci sono: arrivano con i dati definitivi. Il punteggio e' provvisorio.
+    return {
+      standings: st.standings, h2h: [],
+      rounds: 11, total: st.total, live: true, id: match.id,
+    };
   } catch {
     return null;
   }

@@ -124,9 +124,25 @@ vibrazione e titolo lampeggiante** nella scheda. Si spengono col pulsante
 | Sotto 4 punti | −3 |
 | Capitano | ×2 |
 | Non ha giocato | entra la panchina |
+| **Batte un avversario di lega** | **+3** |
+| **Perde contro un avversario di lega** | **−2** |
+| Patta fra i due | 0 |
 
 I bonus piazzamento **non si sommano**: vale solo il più alto. Il capitano raddoppia solo
 se scende davvero in campo (se viene sostituito, il bonus si perde).
+
+### Scontro diretto
+
+Quando due scacchisti **schierati da due partecipanti diversi** si incontrano al
+tavolo, chi vince prende +3 e chi perde −2. Se sono entrambi tuoi non conta
+niente: è una partita di giro. Vale per chi è effettivamente sceso in campo,
+quindi anche per un panchinaro entrato al posto di un assente.
+
+I dati vengono dalle partite di tutti gli 11 turni, non solo dall'ultimo:
+`tools/build_results.py` li raccoglie e ne salva solo quelle fra due giocatori
+del listone — un'ottantina per torneo, un paio di kilobyte. Nella finestra in
+cui l'app legge la classifica in diretta gli scontri non ci sono ancora, quindi
+i punteggi sono provvisori finché non arriva il file definitivo.
 
 Le regole stanno in `js/config.js` (`SCORING`) e si possono cambiare a piacere.
 
