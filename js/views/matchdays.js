@@ -41,6 +41,7 @@ export default function matchdaysView(ctx) {
 function matchdayCard(ctx, md) {
   const { league } = ctx;
   const nLineups = Object.keys(md.lineups || {}).length;
+  const nInherited = Object.values(md.lineups || {}).filter((l) => l.inherited).length;
   const nMembers = members(league).length;
 
   const badge = {
@@ -58,7 +59,8 @@ function matchdayCard(ctx, md) {
     ),
 
     md.status !== "scored" && el("div.small.muted",
-      `${nLineups}/${nMembers} formazioni consegnate`),
+      `${nLineups}/${nMembers} formazioni pronte`,
+      nInherited ? ` · ${nInherited} ereditate, ancora da confermare` : ""),
 
     md.status === "scored" && scoreTable(ctx, md),
 
@@ -159,6 +161,34 @@ function showDetail(ctx, row, md) {
 
 /* --------------------------- crea una giornata ------------------------- */
 
+/**
+ * Formazioni di partenza per una giornata nuova: si copiano dall'ultima
+ * giornata in cui erano state messe.
+ *
+ * Prima non succedeva, e chi si dimenticava di schierare prendeva zero
+ * secco. Ereditare e' sempre meglio: la rosa e' congelata dopo l'asta,
+ * quindi i giocatori della settimana prima sono ancora tutti disponibili.
+ * Restano marcate `inherited` finche' non vengono confermate, cosi'
+ * l'interfaccia puo' dire che sono da rivedere.
+ */
+function inheritLineups(ctx) {
+  const src = ctx.matchdays.find((m) => Object.keys(m.lineups || {}).length);
+  if (!src) return {};
+  const out = {};
+  for (const [uid, lu] of Object.entries(src.lineups)) {
+    if (!lu?.starters?.length) continue;
+    out[uid] = {
+      starters: [...lu.starters],
+      bench: [...(lu.bench || [])],
+      captain: lu.captain || null,
+      inherited: true,
+      inheritedFrom: src.label || src.id,
+      savedAt: lu.savedAt || 0,
+    };
+  }
+  return out;
+}
+
 function openPicker(ctx) {
   modal((close) => {
     const box = el("div.stack",
@@ -182,12 +212,17 @@ function openPicker(ctx) {
               free.map((e) => el("button.pcard", {
                 onclick: async () => {
                   close();
+                  const carried = inheritLineups(ctx);
                   await ctx.store.setMatchday(ctx.league.id, {
                     id: e.id, tournamentId: e.id, label: `Titled Tuesday · ${e.label}`,
-                    date: e.date, status: "open", rounds: 11, lineups: {}, results: {},
+                    date: e.date, status: "open", rounds: 11,
+                    lineups: carried, results: {},
                     createdAt: Date.now(),
                   });
-                  toast("Giornata aperta: " + e.label, "ok");
+                  const n = Object.keys(carried).length;
+                  toast(n
+                    ? `Giornata aperta: ${e.label}. ${n} formazioni ereditate dalla scorsa.`
+                    : `Giornata aperta: ${e.label}`, "ok");
                 },
               },
                 el("div", { style: "font-size:1.2rem" }, "🗓️"),

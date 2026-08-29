@@ -46,6 +46,9 @@ export default function lineupView(ctx) {
   selectedMd = md.id;
 
   const saved = md.lineups?.[uid] || null;
+  // Ereditata dalla giornata precedente: vale come rete di sicurezza, ma
+  // finche' non la confermi va segnalata come da rivedere.
+  const inherited = Boolean(saved?.inherited);
   const draft = drafts.get(md.id) || normalize(saved, mine, league.lineupSize);
   drafts.set(md.id, draft);
 
@@ -102,10 +105,12 @@ export default function lineupView(ctx) {
     }
   }
 
-  const dirty = !saved
+  const changed = !saved
     || saved.captain !== draft.captain
     || saved.starters.join() !== starters.join()
     || saved.bench.join() !== bench.join();
+  // Anche invariata, una formazione ereditata resta da confermare.
+  const dirty = changed || inherited;
 
   return el("div.stack", { style: "gap:1.4rem" },
     open.length > 1 && el("div.row",
@@ -121,8 +126,15 @@ export default function lineupView(ctx) {
         el("div",
           el("h2", md.label || "Giornata"),
           el("div.small.muted", "Titled Tuesday · schieramenti aperti")),
-        saved ? el("span.badge.badge-green", "Salvata") : el("span.badge.badge-red", "Da salvare"),
+        inherited ? el("span.badge.badge-gold", "Ereditata")
+          : saved ? el("span.badge.badge-green", "Salvata")
+          : el("span.badge.badge-red", "Da salvare"),
       ),
+      inherited && el("div.notice",
+        "Questa è la formazione della giornata precedente",
+        saved.inheritedFrom ? ` (${saved.inheritedFrom})` : "",
+        ". Vale così com'è se non tocchi niente — controlla solo che ti convinca ancora, poi confermala."),
+
       el("div.small.muted",
         need > 0 ? `Mancano ${need} titolari.`
         : need < 0 ? `Hai ${-need} titolari di troppo.`
@@ -157,8 +169,9 @@ export default function lineupView(ctx) {
       el("button.btn.btn-primary", {
         style: "flex:1", disabled: !dirty || starters.length !== league.lineupSize || !draft.captain,
         onclick: save,
-      }, dirty ? "Salva formazione" : "Formazione salvata"),
-      saved && el("button.btn.btn-ghost", {
+      }, inherited && !changed ? "Conferma formazione"
+         : dirty ? "Salva formazione" : "Formazione salvata"),
+      saved && changed && el("button.btn.btn-ghost", {
         onclick: () => { drafts.delete(md.id); ctx.refresh(); },
       }, "Annulla modifiche"),
     ),
