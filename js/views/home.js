@@ -86,6 +86,16 @@ function openCreate(ctx) {
         ),
         e("p.muted.small", { style: "margin:0" },
           "I titolari devono essere meno dei giocatori in rosa: la differenza è la panchina."),
+
+        e("label.field", "Come si fa l'asta",
+          e("select", { name: "modo" },
+            e("option", { value: "live" }, "Live — tutti insieme, col cronometro"),
+            e("option", { value: "sealed" }, "Buste chiuse — offerte segrete, ognuno quando può"),
+          )),
+        e("p.muted.small", { style: "margin:0" },
+          "L'asta live è una serata da passare insieme. Le buste chiuse non "
+          + "richiedono che siate collegati nello stesso momento: si manda "
+          + "un'offerta segreta per ogni giocatore e alla scadenza si assegna tutto."),
         e("div.row", { style: "justify-content:flex-end" },
           e("button.btn.btn-ghost", { type: "button", onclick: close }, "Annulla"),
           e("button.btn.btn-primary", { type: "submit" }, "Crea"),
@@ -111,6 +121,7 @@ function openCreate(ctx) {
             budget: Number(f.get("budget")),
             rosterSize: roster,
             lineupSize: lineup,
+            auctionMode: String(f.get("modo") || "live"),
           });
           close();
           ctx.go(`#/l/${id}/asta`);

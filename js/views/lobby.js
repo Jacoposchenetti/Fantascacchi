@@ -25,7 +25,11 @@ export default function lobbyView(ctx) {
       el("h1", league.name),
       el("p.muted", { style: "margin:0" },
         `${league.budget} crediti · rosa da ${league.rosterSize} · `,
-        `${league.lineupSize} titolari · ${league.bidSeconds}s per rilancio`),
+        `${league.lineupSize} titolari · `,
+        // Nelle buste chiuse i secondi del rilancio non esistono.
+        league.auctionMode === "sealed"
+          ? `giri da ${league.sealedHours || 24} ore`
+          : `${league.bidSeconds}s per rilancio`),
 
       ctx.isAdmin
         ? el("div.stack-s",
@@ -76,7 +80,14 @@ export default function lobbyView(ctx) {
       ),
     ),
 
-    el("div.notice",
+    league.auctionMode === "sealed"
+      ? el("div.notice",
+          el("strong", "Asta a buste chiuse. "),
+          "Nessuno deve essere collegato insieme agli altri: si manda un'offerta "
+          + "segreta per ogni giocatore che si vuole, e alla scadenza del giro si "
+          + "assegna tutto in una volta. Vince chi ha offerto di più e paga quanto "
+          + "ha offerto. Se le rose non sono piene, si apre un altro giro.")
+      : el("div.notice",
       el("strong", "Come funziona l'asta. "),
       `A turno si chiama un giocatore: hai ${league.turnSeconds || 60} secondi per scegliere, `,
       `poi il turno passa al successivo. Chi chiama parte da 1 credito ed è il primo offerente; `,

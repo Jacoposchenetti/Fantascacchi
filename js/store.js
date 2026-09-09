@@ -19,9 +19,11 @@ const LS_ME = "fsc:me";
 const LS_LEAGUE = (id) => `fsc:league:${id}`;
 const LS_MDS = (id) => `fsc:mds:${id}`;
 const LS_PRES = (id) => `fsc:presence:${id}`;
+const LS_BIDS = (id) => `fsc:bids:${id}`;
 
 /** Scheletro di una lega nuova. */
-export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize, bidSeconds, turnSeconds }) {
+export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
+                            bidSeconds, turnSeconds, auctionMode, sealedHours }) {
   const id = shortId(6);
   return {
     id,
@@ -43,6 +45,11 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
       endsAt: 0, turnIdx: 0, turnEndsAt: 0,
     },
     customPlayers: {},
+    // "live" = asta a chiamata col cronometro, tutti collegati insieme.
+    // "sealed" = buste chiuse, offerte segrete entro una scadenza.
+    auctionMode: auctionMode || "live",
+    sealed: { giro: 1, scadenza: 0, ultimoRisultato: [], risoltoIl: 0 },
+    sealedHours: sealedHours ?? DEFAULTS.sealedHours,
     // La stagione parte quando si chiude l'asta: da li' in poi le giornate
     // si generano da sole dai Titled Tuesday che arrivano.
     season: { startsAt: 0, matchdays: DEFAULTS.matchdays },
@@ -183,6 +190,28 @@ function localAdapter() {
     },
 
     watchPresence(id, cb) { return watch(LS_PRES(id), (v) => cb(v || {})); },
+
+    /* --------------------------- buste chiuse -------------------------- */
+
+    watchMyBids(id, uid, cb) {
+      return watch(LS_BIDS(id), (v) => cb((v || {})[uid] || {}));
+    },
+
+    async setBids(id, uid, bids) {
+      const key = LS_BIDS(id);
+      const all = readJSON(key, {});
+      all[uid] = bids;
+      writeJSON(key, all);
+      broadcast(key);
+    },
+
+    /** Tutte le offerte: in locale non c'e' segretezza da imporre. */
+    async readAllBids(id) { return readJSON(LS_BIDS(id), {}); },
+
+    async clearBids(id) {
+      writeJSON(LS_BIDS(id), {});
+      broadcast(LS_BIDS(id));
+    },
 
     async touchPresence(id, uid) {
       const key = LS_PRES(id);

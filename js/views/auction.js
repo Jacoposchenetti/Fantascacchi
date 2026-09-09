@@ -22,6 +22,7 @@ import {
 import { alertNewLot, alertYourTurn, isMuted, setMuted, primeAudio, stopFlash } from "../alerts.js";
 import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
+import sealedView from "./sealed.js";
 
 let filter = "";
 let onlyFree = true;
@@ -38,6 +39,10 @@ export default function auctionView(ctx) {
   if (!catalog) return el("div.card", "Carico il listone…");
 
   if (league.phase === "lobby") return lobbyView(ctx);
+  // Modalita' asincrona: nessun cronometro, nessuno deve essere collegato.
+  if (league.auctionMode === "sealed" && league.phase !== "season") {
+    return sealedView(ctx);
+  }
   if (league.phase === "paused") return pausedStage(ctx);
   if (league.phase !== "auction") return closedStage(ctx);
 

@@ -9,9 +9,49 @@ Sito completamente statico: nessun server da mantenere, gira su GitHub Pages.
 
 ---
 
+## Installarla sul telefono
+
+È una PWA: apri <https://jacoposchenetti.github.io/Fantascacchi/> e usa
+*Aggiungi alla schermata Home* (Safari: tasto condividi; Chrome: menu ⋮).
+Parte a schermo intero, con la sua icona, e si apre anche senza rete —
+mostrando l'ultima versione vista.
+
+Il service worker usa **rete per prima, cache come scorta**. La cache per
+prima sarebbe più veloce ma qui farebbe danno: l'app si aggiorna a ogni push
+e i risultati arrivano ogni mercoledì, quindi la gente resterebbe indietro
+senza capire perché. Le icone si rigenerano con `python tools/build_icons.py`.
+
 ## Come si svolge
 
 Il gioco ha due tempi con esigenze opposte, come nel fantacalcio vero.
+
+### Due modi di fare l'asta
+
+Si sceglie creando la lega, e cambia tutto:
+
+| | **Live** | **Buste chiuse** |
+|---|---|---|
+| Quando | tutti insieme, una serata | ognuno quando può |
+| Meccanica | chiamata e rilancio col cronometro | offerta segreta per giocatore |
+| Durata | una mezz'ora | giri da 24 ore (regolabili) |
+| Serve che | siate tutti collegati | nessuno sia collegato |
+
+Nelle **buste chiuse** si manda un'offerta segreta per ogni giocatore che si
+vuole. Alla scadenza del giro si risolve tutto in una volta: si assegna dal
+prezzo più alto al più basso, chi vince paga esattamente quanto ha offerto, e
+a parità vince chi ha più crediti in cassa (poi chi ha offerto prima). Se le
+rose non sono piene si apre un altro giro.
+
+Puoi offrire su più giocatori di quanti potresti permetterti — è normale
+puntare sapendo di non prenderli tutti — perché il budget viene rispettato
+durante l'assegnazione: le offerte che non ci stanno vengono scartate.
+
+**Le offerte sono segrete davvero**, non solo nascoste nell'interfaccia: le
+regole Firestore impediscono di leggere quelle altrui finché la scadenza non
+è passata. Nasconderle solo a schermo non basterebbe, chiunque sa aprire la
+console del browser.
+
+Il resto di questa sezione descrive l'asta live.
 
 **L'asta è un evento sincrono.** Serve che siate collegati tutti insieme: i lotti
 durano una ventina di secondi. Funziona sia in presenza sia a distanza, ma a una

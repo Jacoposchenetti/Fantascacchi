@@ -11,6 +11,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Scadenza del giro di buste chiuse. Se la lega non usa quella modalita'
+    // il valore manca: il default 0 rende le offerte leggibili subito, ma in
+    // quel caso non ce ne sono.
+    function scadenzaBuste(leagueId) {
+      return get(/databases/$(database)/documents/leagues/$(leagueId))
+        .data.get('sealed', {}).get('scadenza', 0);
+    }
+
     match /leagues/{leagueId} {
       allow get, list: if request.auth != null;
       allow create, update: if request.auth != null;
@@ -19,6 +27,22 @@ service cloud.firestore {
       match /matchdays/{matchdayId} {
         allow read, create, update: if request.auth != null;
         allow delete: if request.auth != null;
+      }
+
+      // Offerte a busta chiusa: un documento per persona.
+      //
+      // Ognuno scrive e rilegge SOLO le proprie finche' la scadenza del giro
+      // non e' passata; da quel momento diventano leggibili a tutti, perche'
+      // serve poterle risolvere e verificare.
+      //
+      // E' segretezza vera: nasconderle nell'interfaccia non basterebbe,
+      // chiunque sa aprire la console del browser vedrebbe le offerte altrui.
+      match /bids/{uid} {
+        allow write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && (
+          request.auth.uid == uid
+          || request.time.toMillis() >= scadenzaBuste(leagueId)
+        );
       }
 
       // Presenza: un battito ogni 20 secondi, un documento per persona.

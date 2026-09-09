@@ -32,7 +32,7 @@ export async function firebaseAdapter() {
     GoogleAuthProvider, signInWithPopup,
   } = authMod;
   const {
-    getFirestore, doc, collection, getDoc, setDoc, updateDoc, deleteDoc,
+    getFirestore, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
     onSnapshot, runTransaction,
   } = fsMod;
 
@@ -75,6 +75,10 @@ export async function firebaseAdapter() {
   // ogni 20 secondi non entrano in conflitto con le transazioni dei rilanci.
   const presRef = (id, uid) => doc(db, "leagues", id, "presence", uid);
   const presColl = (id) => collection(db, "leagues", id, "presence");
+  // Un documento di offerte per persona: e' cosi' che le regole possono
+  // impedirne la lettura altrui finche' la scadenza non e' passata.
+  const bidRef = (id, uid) => doc(db, "leagues", id, "bids", uid);
+  const bidColl = (id) => collection(db, "leagues", id, "bids");
 
   /** Traduce i codici Firebase in qualcosa di leggibile. */
   function authError(e) {
@@ -224,6 +228,36 @@ export async function firebaseAdapter() {
 
     async touchPresence(id, uid) {
       await setDoc(presRef(id, uid), { at: Date.now() });
+    },
+
+    /* ----------------------------- buste chiuse ------------------------ */
+
+    watchMyBids(id, uid, cb) {
+      return onSnapshot(
+        bidRef(id, uid),
+        (snap) => cb(snap.exists() ? (snap.data().bids || {}) : {}),
+        (err) => { console.error("watchMyBids", err); cb({}); },
+      );
+    },
+
+    async setBids(id, uid, bids) {
+      await setDoc(bidRef(id, uid), { uid, bids, at: Date.now() });
+    },
+
+    /**
+     * Tutte le offerte. Le regole la consentono solo a scadenza passata:
+     * prima di allora questa chiamata fallisce, ed e' il comportamento giusto.
+     */
+    async readAllBids(id) {
+      const snap = await getDocs(bidColl(id));
+      const out = {};
+      snap.docs.forEach((d) => { out[d.id] = d.data().bids || {}; });
+      return out;
+    },
+
+    async clearBids(id) {
+      const snap = await getDocs(bidColl(id));
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
     },
 
     async exportLeague(id) {
