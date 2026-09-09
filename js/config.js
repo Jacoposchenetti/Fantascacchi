@@ -48,6 +48,7 @@ export const DEFAULTS = {
   turnSeconds: 60,   // tempo per chiamare quando tocca a te, poi si salta
   matchdays: 10,     // durata della stagione, in Titled Tuesday
   sealedHours: 24,   // quanto dura un giro di buste chiuse
+  sealedSkipLimit: 2, // giri saltati di fila, poi la rosa si riempie d'ufficio
 };
 
 /** Un partecipante e' "online" se ha dato un segno di vita di recente. */

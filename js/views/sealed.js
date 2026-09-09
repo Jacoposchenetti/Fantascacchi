@@ -14,7 +14,8 @@ import {
   catalogList, ownerOf, ownedCount, budgetLeft, members, memberName,
 } from "../league.js";
 import {
-  risolvi, applica, maxOfferta, impegnato, daCompletare, mancaAlla, DEFAULT_ORE,
+  risolvi, applica, maxOfferta, impegnato, daCompletare, mancaAlla,
+  DEFAULT_ORE, DEFAULT_SALTI,
 } from "../sealed.js";
 import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
@@ -207,8 +208,21 @@ function risultatoScorso(ctx, s) {
 
 function pannelloPartecipanti(ctx) {
   const { league, uid } = ctx;
+  const haOfferto = new Set(league.sealed?.hannoOfferto || []);
+  const saltati = league.sealed?.saltati || {};
+  const soglia = league.sealedSkipLimit ?? DEFAULT_SALTI;
+  const aRischio = members(league).filter(
+    (m) => ownedCount(league, m.uid) < league.rosterSize
+      && (saltati[m.uid] || 0) >= soglia - 1 && !haOfferto.has(m.uid));
+
   return el("section",
     el("div.section-head", el("h2", "Partecipanti")),
+    aRischio.length > 0 && el("div.notice.warn", { style: "margin-bottom:.6rem" },
+      aRischio.map((m) => m.name).join(", "),
+      aRischio.length === 1 ? " non offre da un po'. " : " non offrono da un po'. ",
+      `Se salta${aRischio.length === 1 ? "" : "no"} anche questo giro, la rosa `
+      + "viene riempita d'ufficio con i giocatori liberi più economici, a 1 credito. "
+      + "Meglio mandare un messaggio."),
     el("div.grid", members(league).map((m) => {
       const left = budgetLeft(league, m.uid);
       const owned = ownedCount(league, m.uid);
@@ -221,7 +235,14 @@ function pannelloPartecipanti(ctx) {
         el("div.bar", el("i", { style: `width:${Math.round((left / league.budget) * 100)}%` })),
         el("div.spread.small.muted",
           el("span", `${left} crediti`),
-          el("span.mute-2", "offerte segrete")),
+          owned >= league.rosterSize
+            ? el("span.mute-2", "—")
+            : haOfferto.has(m.uid)
+              ? el("span", { class: "pres-ok" }, "ha offerto")
+              : el("span", { class: saltati[m.uid] ? "pres-low" : "mute-2" },
+                  saltati[m.uid]
+                    ? `saltato ${saltati[m.uid]} giro${saltati[m.uid] > 1 ? "i" : ""}`
+                    : "non ancora")),
       );
     })),
   );
@@ -328,6 +349,16 @@ async function salvaOfferta(ctx, pid, amount) {
   try {
     await ctx.store.setBids(ctx.league.id, ctx.uid, mie);
     mieOfferte = mie;
+    // Elenco pubblico di CHI ha offerto, senza gli importi: serve a poter
+    // sollecitare chi manca prima che scada il giro.
+    const partecipa = Object.keys(mie).length > 0;
+    await ctx.mutate((lg) => {
+      const attuale = new Set(lg.sealed?.hannoOfferto || []);
+      if (partecipa === attuale.has(ctx.uid)) return null;
+      partecipa ? attuale.add(ctx.uid) : attuale.delete(ctx.uid);
+      lg.sealed = { ...(lg.sealed || {}), hannoOfferto: [...attuale] };
+      return lg;
+    });
     toast(amount < 1 ? "Offerta ritirata" : `Offerta di ${amount} registrata`, "ok");
     ctx.refresh();
   } catch (err) {
@@ -372,10 +403,20 @@ async function provaARisolvere(ctx) {
   try {
     const tutte = await ctx.store.readAllBids(ctx.league.id);
     const { assegnazioni } = risolvi(ctx.league, tutte);
+    const chiHaOfferto = new Set(
+      Object.entries(tutte).filter(([, m]) => Object.keys(m || {}).length).map(([u]) => u));
+    // Dal piu' economico: chi salta i giri viene riempito con quelli, non
+    // con i fuoriclasse, altrimenti non partecipare converrebbe.
+    const liberiEconomici = catalogList(ctx.catalog)
+      .filter((pl) => !ctx.league.roster?.[pl.id])
+      .sort((a, b) => a.price - b.price)
+      .map((pl) => pl.id);
+
     await ctx.store.updateLeague(ctx.league.id, (lg) => {
       // Qualcun altro ha gia' risolto questo giro.
       if (!lg.sealed?.scadenza || Date.now() < lg.sealed.scadenza) return null;
-      return applica(lg, assegnazioni, lg.sealedHours || DEFAULT_ORE);
+      return applica(lg, assegnazioni, lg.sealedHours || DEFAULT_ORE,
+        { chiHaOfferto, liberiEconomici });
     });
     await ctx.store.clearBids(ctx.league.id);
   } catch (err) {

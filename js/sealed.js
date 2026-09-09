@@ -28,6 +28,7 @@
 import { members, budgetLeft, ownedCount } from "./league.js";
 
 export const DEFAULT_ORE = 24;
+export const DEFAULT_SALTI = 2;
 
 /** Chi deve ancora completare la rosa. */
 export function daCompletare(league) {
@@ -117,8 +118,11 @@ export function risolvi(league, tutte) {
  * Applica il risultato alla lega. Da usare dentro una transazione: la
  * risoluzione la lancia il primo che si accorge della scadenza, e chi arriva
  * dopo deve trovare il giro gia' chiuso e non rifarlo.
+ *
+ * @param opzioni.chiHaOfferto  Set di uid che hanno mandato offerte nel giro
+ * @param opzioni.liberiEconomici  playerId liberi, dal piu' economico
  */
-export function applica(lg, assegnazioni, oreProssimoGiro) {
+export function applica(lg, assegnazioni, oreProssimoGiro, opzioni = {}) {
   for (const a of assegnazioni) {
     if (lg.roster?.[a.playerId]) continue;
     lg.roster = {
@@ -127,12 +131,17 @@ export function applica(lg, assegnazioni, oreProssimoGiro) {
     };
   }
 
+  const dufficio = riempiChiSalta(lg, assegnazioni, opzioni);
+
   const finita = daCompletare(lg).length === 0;
   lg.sealed = {
     ...(lg.sealed || {}),
     giro: (lg.sealed?.giro || 1) + (finita ? 0 : 1),
     scadenza: finita ? 0 : Date.now() + oreProssimoGiro * 3600 * 1000,
     ultimoRisultato: assegnazioni,
+    dufficio,
+    hannoOfferto: [],                  // il giro nuovo riparte da zero
+    saltati: lg.sealed?.saltati || {},
     risoltoIl: Date.now(),
   };
   if (finita) {
@@ -140,6 +149,48 @@ export function applica(lg, assegnazioni, oreProssimoGiro) {
     lg.season = { startsAt: Date.now(), matchdays: lg.season?.matchdays || 10 };
   }
   return lg;
+}
+
+/**
+ * Chi salta troppi giri di fila si vede riempire la rosa d'ufficio, con i
+ * giocatori liberi piu' ECONOMICI a 1 credito.
+ *
+ * Serve perche' altrimenti una sola persona che non apre mai l'app blocca
+ * l'asta all'infinito: gli altri finiscono, i giri continuano a girare a
+ * vuoto e la stagione non comincia mai. Verificato: succedeva davvero.
+ *
+ * Si prendono i piu' economici e non i migliori di proposito: chi non
+ * partecipa non deve ritrovarsi premiato con i fuoriclasse gratis.
+ */
+function riempiChiSalta(lg, assegnazioni, opzioni) {
+  const soglia = opzioni.soglia ?? lg.sealedSkipLimit ?? DEFAULT_SALTI;
+  const offerto = opzioni.chiHaOfferto || new Set();
+  const liberi = (opzioni.liberiEconomici || []).filter((pid) => !lg.roster?.[pid]);
+  const saltati = { ...(lg.sealed?.saltati || {}) };
+  const fatti = [];
+
+  for (const m of members(lg)) {
+    if (ownedCount(lg, m.uid) >= lg.rosterSize) { saltati[m.uid] = 0; continue; }
+    const haPartecipato = offerto.has(m.uid)
+      || assegnazioni.some((a) => a.uid === m.uid);
+    saltati[m.uid] = haPartecipato ? 0 : (saltati[m.uid] || 0) + 1;
+
+    if (saltati[m.uid] < soglia) continue;
+
+    while (ownedCount(lg, m.uid) < lg.rosterSize && liberi.length) {
+      const pid = liberi.shift();
+      if (lg.roster?.[pid]) continue;
+      lg.roster = {
+        ...lg.roster,
+        [pid]: { playerId: pid, ownerUid: m.uid, price: 1, at: Date.now(), dufficio: true },
+      };
+      fatti.push({ playerId: pid, uid: m.uid, price: 1 });
+    }
+    saltati[m.uid] = 0;
+  }
+
+  lg.sealed = { ...(lg.sealed || {}), saltati };
+  return fatti;
 }
 
 /** Quanto manca alla scadenza, in forma leggibile. */

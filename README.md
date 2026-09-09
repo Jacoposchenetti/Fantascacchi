@@ -46,6 +46,41 @@ Puoi offrire su più giocatori di quanti potresti permetterti — è normale
 puntare sapendo di non prenderli tutti — perché il budget viene rispettato
 durante l'assegnazione: le offerte che non ci stanno vengono scartate.
 
+### Se qualcuno non offre
+
+Salta il giro: non prende niente e tiene i suoi crediti. Ma se **salta due
+giri di fila**, la sua rosa viene riempita d'ufficio con i giocatori liberi
+più **economici**, a 1 credito l'uno.
+
+Serve perché altrimenti una sola persona che non apre mai l'app blocca tutto:
+gli altri finiscono, i giri continuano a girare a vuoto e la stagione non
+comincia mai. Succedeva davvero — verificato con una simulazione che dopo 25
+giri era ancora ferma.
+
+Si prendono i più economici di proposito: chi non partecipa non deve
+ritrovarsi premiato con i fuoriclasse gratis.
+
+Durante il giro si vede **chi ha già offerto e chi no** (solo il fatto, mai
+gli importi), e chi rischia il riempimento d'ufficio viene segnalato, così lo
+si può sollecitare prima che sia tardi.
+
+### Quanto dura
+
+Dipende da su quanti giocatori puntate a ogni giro, non dal formato. Con rose
+da 8 e 500 crediti, simulando la risoluzione vera:
+
+| Offerte per giro | 4 partecipanti | 8 partecipanti |
+|---:|---|---|
+| 1 | 11 giri | 14 giri |
+| 3 | 5 giri | 7 giri |
+| **5** | **4 giri** | **5 giri** |
+| 8+ | 3–4 giri | 4 giri |
+
+Con giri da 24 ore fanno **4-5 giorni**. Puntare su un giocatore solo per
+giro è il modo peggiore: se lo perdi, quel giro non ti è costato crediti ma
+ti è costato un giorno. Se volete chiudere in fretta, la leva è la durata del
+giro: da 6 ore si finisce in una serata.
+
 **Le offerte sono segrete davvero**, non solo nascoste nell'interfaccia: le
 regole Firestore impediscono di leggere quelle altrui finché la scadenza non
 è passata. Nasconderle solo a schermo non basterebbe, chiunque sa aprire la
