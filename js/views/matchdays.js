@@ -113,13 +113,30 @@ function slotCard(ctx, slot) {
   );
 }
 
+/**
+ * Punteggio della giornata per TUTTA la lega.
+ *
+ * Passa da scoreMatchday e non da scoreLineup perche' gli scontri diretti
+ * dipendono da chi hanno schierato gli altri: non si possono calcolare una
+ * persona alla volta.
+ */
+export function scoreSlot(ctx, slot, res) {
+  const lineups = new Map();
+  for (const m of members(ctx.league)) {
+    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
+    if (lu) lineups.set(m.uid, lu);
+  }
+  return scoreMatchday(lineups, resultsMap(ctx, slot, res), res.h2h,
+    undefined, slot.rounds);
+}
+
 function scoreTable(ctx, slot, res) {
   const { league } = ctx;
+  const scored = scoreSlot(ctx, slot, res);
 
   const rows = members(league).map((m) => {
-    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
-    if (!lu) return { name: m.name, uid: m.uid, total: 0, missing: true, detail: null };
-    const sc = scoreLineup(lu, resultsMap(ctx, slot, res), undefined, slot.rounds);
+    const sc = scored.get(m.uid);
+    if (!sc) return { name: m.name, uid: m.uid, total: 0, missing: true, detail: null };
     return { name: m.name, uid: m.uid, total: sc.total, missing: false, detail: sc };
   }).sort((a, b) => b.total - a.total);
 

@@ -14,12 +14,10 @@ export default function standingsView(ctx) {
   const giocate = plan.slots.filter((s) => results.has(s.n));
 
   const table = members(league).map((m) => {
-    const perMd = giocate.map((slot) => {
-      const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
-      if (!lu) return 0;
-      return scoreLineup(lu, resultsMap(ctx, slot, results.get(slot.n)),
-        undefined, slot.rounds).total;
-    });
+    // scoreSlot fa la passata sull'intera lega: serve perche' gli scontri
+    // diretti dipendono da chi hanno schierato gli altri.
+    const perMd = giocate.map(
+      (slot) => scoreSlot(ctx, slot, results.get(slot.n)).get(m.uid)?.total || 0);
     const total = perMd.reduce((s, v) => s + v, 0);
     return {
       uid: m.uid, name: m.name, perMd,
