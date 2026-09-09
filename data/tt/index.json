@@ -1,7 +1,17 @@
 {
- "generatedAt": "2026-09-02T06:07:54Z",
+ "generatedAt": "2026-09-09T06:07:50Z",
  "durataStimataS": 10800,
  "events": [
+  {
+   "id": "titled-tuesday-blitz-september-08-2026-31085409",
+   "date": "2026-09-08",
+   "start": 1788879600,
+   "finish": 1788887642,
+   "rounds": 11,
+   "played": 312,
+   "total": 496,
+   "h2h": 56
+  },
   {
    "id": "titled-tuesday-blitz-august-25-2026-31064127",
    "date": "2026-08-25",
