@@ -1,4 +1,38 @@
 import { el, toast, confirmDialog, modal, copy, fmtPts } from "../ui.js";
+
+/** Come confirmDialog ma chiede di scrivere qualcosa. null = annullato. */
+function promptDialog(title, text) {
+  return new Promise((resolve) => {
+    let risposto = false;
+    modal((close) => {
+      const form = el("form.stack", {
+        onsubmit: (e) => {
+          e.preventDefault();
+          risposto = true;
+          const v = new FormData(form).get("v");
+          close();
+          resolve(String(v ?? ""));
+        },
+      },
+        el("h2", title),
+        text && el("p.muted.small", { style: "margin:0" }, text),
+        el("input", { type: "text", name: "v", autofocus: true, autocomplete: "off" }),
+        el("div.row", { style: "justify-content:flex-end" },
+          el("button.btn.btn-ghost", { type: "button",
+            onclick: () => { risposto = true; close(); resolve(null); } }, "Annulla"),
+          el("button.btn.btn-danger", { type: "submit" }, "Conferma"),
+        ),
+      );
+      return form;
+    });
+    const dlg = document.querySelector("#modal");
+    const onClose = () => {
+      dlg.removeEventListener("close", onClose);
+      if (!risposto) resolve(null);
+    };
+    dlg.addEventListener("close", onClose);
+  });
+}
 import { SCORING } from "../config.js";
 import { members, memberName, ownedCount, inviteLink } from "../league.js";
 import { fetchProfile } from "../chesscom.js";
@@ -125,6 +159,15 @@ export default function settingsView(ctx) {
           + "Giornate e punteggi già calcolati non vengono toccati."),
         el("button.btn.btn-sm.btn-danger", { onclick: () => restartAuction(ctx) },
           "Ricomincia l'asta da capo"),
+
+        el("hr", { style: "border:0;border-top:1px solid var(--line);margin:.3rem 0" }),
+
+        el("p.muted.small", { style: "margin:0" },
+          "Cancella la lega per tutti: rose, formazioni, giornate e "
+          + "classifica spariscono e non tornano. Gli altri partecipanti "
+          + "se la ritrovano sparita."),
+        el("button.btn.btn-sm.btn-danger", { onclick: () => deleteLeague(ctx) },
+          "Elimina la lega"),
       ),
     ),
 
@@ -261,6 +304,39 @@ function addPlayer(ctx) {
     }
     return form;
   });
+}
+
+async function deleteLeague(ctx) {
+  const nome = ctx.league.name;
+  const parti = Object.keys(ctx.league.members || {}).length;
+
+  const ok = await confirmDialog(
+    `Eliminare "${nome}"?`,
+    `Tutto quello che c'è dentro sparisce per ${parti === 1 ? "te" : `tutti e ${parti}`}, `
+    + "e non si può recuperare. Se ti serve una copia, scarica prima il backup.",
+    "Elimina per sempre",
+  );
+  if (!ok) return;
+
+  // Seconda conferma a prova di clic distratto: si scrive il nome.
+  const conferma = await promptDialog(
+    "Ultima conferma",
+    `Scrivi "${nome}" per confermare.`,
+  );
+  if (conferma == null) return;
+  if (conferma.trim() !== nome) {
+    toast("Il nome non corrisponde: eliminazione annullata", "err");
+    return;
+  }
+
+  try {
+    const id = ctx.league.id;
+    await ctx.store.deleteLeague(id);
+    toast("Lega eliminata", "ok");
+    ctx.go("#/");
+  } catch (err) {
+    toast(err.message || "Non sono riuscito a eliminarla", "err");
+  }
 }
 
 async function restartAuction(ctx) {

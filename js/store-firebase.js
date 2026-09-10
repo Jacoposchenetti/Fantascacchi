@@ -198,6 +198,19 @@ export async function firebaseAdapter() {
       await deleteDoc(mdRef(id, mdId));
     },
 
+    /**
+     * Cancella la lega e le sue sottocollezioni. Firestore non cancella
+     * i figli da solo: si svuotano a mano. Per una lega tra amici sono
+     * poche decine di documenti.
+     */
+    async deleteLeague(id) {
+      for (const coll of [mdsRef(id), presColl(id), bidColl(id)]) {
+        const snap = await getDocs(coll);
+        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+      }
+      await deleteDoc(leagueRef(id));
+    },
+
     watchLineups(id, mdId, cb) {
       return onSnapshot(
         mdRef(id, mdId),

@@ -371,6 +371,18 @@ giornate ti lascia un buco in formazione.
 All'asta l'app mostra entrambe: *«8.4/11 quando gioca»* e *«presente 21/26»*,
 con la presenza colorata (verde sopra l'80%, rossa sotto il 55%).
 
+### Eliminare una lega
+
+Chi l'ha creata la trova in **Impostazioni → Zona pericolosa → Elimina la
+lega**. Serve una doppia conferma (la seconda chiede di riscrivere il nome),
+poi la lega e tutto quello che le sta attaccato — rose, formazioni, giornate,
+offerte, presenze — spariscono per tutti. Gli altri partecipanti che l'avevano
+aperta se la ritrovano con un messaggio "lega non trovata".
+
+Le regole Firestore consentono `delete` sul documento della lega **solo se
+`adminUid` combacia con chi lo chiede**; le sottocollezioni le svuota il
+client prima, perche' Firestore non cancella i figli da solo.
+
 ### Le iscrizioni ai tornei non sono pubbliche
 
 Sarebbe utile sapere in anticipo chi si è iscritto al prossimo Titled Tuesday,

@@ -193,6 +193,14 @@ function localAdapter() {
       broadcast(key);
     },
 
+    /** Cancella la lega e tutto quel che le sta attaccato. Irreversibile. */
+    async deleteLeague(id) {
+      for (const k of [LS_LEAGUE(id), LS_MDS(id), LS_PRES(id), LS_BIDS(id)]) {
+        try { localStorage.removeItem(k); } catch { /* storage bloccato */ }
+        broadcast(k);
+      }
+    },
+
     watchLineups(id, mdId, cb) {
       const key = LS_MDS(id);
       return watch(key, (v) => cb((v?.[mdId]?.lineups) || {}));
