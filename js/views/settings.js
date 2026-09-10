@@ -34,8 +34,8 @@ function promptDialog(title, text) {
   });
 }
 import { SCORING } from "../config.js";
-import { ORE_GIRO, DEFAULT_ORE } from "../sealed.js";
 import { AUCTION_MODES, DEFAULTS } from "../config.js";
+import { campiModo, applicaCampiModo, notaModo } from "./modeparams.js";
 import { members, memberName, ownedCount, inviteLink } from "../league.js";
 import { fetchProfile } from "../chesscom.js";
 import { showInvite } from "./invite.js";
@@ -192,8 +192,16 @@ const kv = (k, v) => [el("dt", k), el("dd", v)];
 
 /* ------------------------------- form lega ----------------------------- */
 
+let modoScelto = null;
+let modoSceltoLega = null;
+
 function leagueForm(ctx, auctionStarted) {
   const { league } = ctx;
+  // Riparti dalla modalità vera quando cambi lega o quando l'asta è partita.
+  if (modoScelto === null || modoSceltoLega !== league.id || auctionStarted) {
+    modoScelto = league.auctionMode || "live";
+    modoSceltoLega = league.id;
+  }
   const form = el("form.stack", {
     onsubmit: async (ev) => {
       ev.preventDefault();
@@ -206,13 +214,9 @@ function leagueForm(ctx, auctionStarted) {
         lg.budget = Number(f.get("budget"));
         lg.rosterSize = roster;
         lg.lineupSize = lineup;
-        lg.bidSeconds = Number(f.get("secs"));
-        lg.turnSeconds = Number(f.get("turnsecs"));
         lg.season = { ...(lg.season || {}), matchdays: Number(f.get("giornate")) };
-        lg.sealedHours = Number(f.get("sealedhours")) || DEFAULT_ORE;
-        lg.salaryDays = Number(f.get("salarydays")) || DEFAULTS.salaryDays;
-        lg.draftSeconds = Number(f.get("draftsecs")) || DEFAULTS.draftSeconds;
-        if (!auctionStarted) lg.auctionMode = String(f.get("modo")) || lg.auctionMode;
+        if (!auctionStarted && f.get("modo")) lg.auctionMode = String(f.get("modo"));
+        applicaCampiModo(lg, f);
         return lg;
       });
       toast("Impostazioni salvate", "ok");
@@ -228,10 +232,6 @@ function leagueForm(ctx, auctionStarted) {
         el("input", { type: "number", name: "roster", value: league.rosterSize, min: 3, max: 20 }))),
       el("div", { style: "flex:1;min-width:90px" }, el("label.field", "Titolari",
         el("input", { type: "number", name: "lineup", value: league.lineupSize, min: 1, max: 15 }))),
-      el("div", { style: "flex:1;min-width:110px" }, el("label.field", "Secondi rilancio",
-        el("input", { type: "number", name: "secs", value: league.bidSeconds, min: 5, max: 120 }))),
-      el("div", { style: "flex:1;min-width:110px" }, el("label.field", "Secondi chiamata",
-        el("input", { type: "number", name: "turnsecs", value: league.turnSeconds || 60, min: 10, max: 300 }))),
     ),
 
     el("div.row",
@@ -240,36 +240,21 @@ function leagueForm(ctx, auctionStarted) {
           el("input", { type: "number", name: "giornate",
             value: league.season?.matchdays || 10, min: 1, max: 52 }))),
       el("div", { style: "flex:1;min-width:150px" },
-        el("label.field", "Buste chiuse: durata di ogni giro",
-          el("select", { name: "sealedhours" },
-            ORE_GIRO.map((h) => el("option", {
-              value: String(h), selected: h === (league.sealedHours || DEFAULT_ORE),
-            }, `${h} ${h === 1 ? "ora" : "ore"}`)))))),
+        el("label.field", "Modalità" + (auctionStarted ? " (bloccata: asta iniziata)" : ""),
+          el("select", {
+            name: "modo", disabled: auctionStarted,
+            onchange: (e) => { modoScelto = e.target.value; ctx.refresh(); },
+          }, AUCTION_MODES.map((m) => el("option", {
+            value: m.id, selected: m.id === modoScelto,
+          }, m.nome))))),
+    ),
 
-    el("div.row",
-      el("div", { style: "flex:1;min-width:150px" },
-        el("label.field", "Modalità",
-          el("select", { name: "modo", disabled: auctionStarted },
-            AUCTION_MODES.map((m) => el("option", {
-              value: m.id, selected: m.id === (league.auctionMode || "live"),
-            }, m.nome))))),
-      el("div", { style: "flex:1;min-width:150px" },
-        el("label.field", "Salary cap: durata finestra",
-          el("select", { name: "salarydays" },
-            [1, 2, 3, 7].map((g) => el("option", {
-              value: String(g), selected: g === (league.salaryDays || DEFAULTS.salaryDays),
-            }, `${g} ${g === 1 ? "giorno" : "giorni"}`))))),
-      el("div", { style: "flex:1;min-width:150px" },
-        el("label.field", "Draft: secondi a scelta",
-          el("input", { type: "number", name: "draftsecs", min: 15, max: 300,
-            value: league.draftSeconds || DEFAULTS.draftSeconds })))),
+    // Solo i parametri della modalità scelta.
+    campiModo(modoScelto, modoScelto === (league.auctionMode || "live") ? league : {}),
 
     el("p.small.mute-2", { style: "margin:0" },
-      "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta. "
-      + "Dieci sono circa due mesi e mezzo. "
-      + "«Secondi rilancio» è quanto dura un lotto, e riparte da capo a ogni offerta. "
-      + "«Secondi chiamata» è quanto tempo hai per scegliere quando tocca a te: "
-      + "scaduto quello, il turno passa al successivo."),
+      "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta "
+      + "(dieci ≈ due mesi e mezzo). " + notaModo(modoScelto)),
 
     auctionStarted && el("div.notice.warn",
       "L'asta è già iniziata: abbassare i crediti o la rosa può mandare qualcuno in negativo. "

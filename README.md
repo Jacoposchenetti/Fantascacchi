@@ -35,7 +35,7 @@ Si sceglie creando la lega, e cambia tutto:
 | Meccanica | chiamata e rilancio | offerta segreta per giocatore | scelta a turno, ordine a serpentina | prezzo fisso, componi entro budget |
 | Soldi | budget, si spende | budget, si spende | nessuno | budget, prezzo = valutazione |
 | Rose esclusive | sì | sì | sì | **no**, lo stesso giocatore in più rose |
-| Durata | ~mezz'ora | giri da 1–12 ore | dipende dai secondi a scelta (60) | finestra di 1, 2, 3 o 7 giorni |
+| Durata | ~mezz'ora | giri da 1–24 ore | dipende dai secondi a scelta (60) | finestra di 1, 2, 3 o 7 giorni |
 
 **Draft** — a turno ognuno prende un giocatore libero; l'ordine si inverte a
 ogni giro (1‑2‑3, poi 3‑2‑1). Niente rilanci, niente budget. Allo scadere del
@@ -91,9 +91,9 @@ da 8 e 500 crediti, simulando la risoluzione vera:
 | **5** | **4 giri** | **5 giri** |
 | 8+ | 3–4 giri | 4 giri |
 
-La durata del giro si sceglie creando la lega — **1, 3, 6 o 12 ore** — e si
+La durata del giro si sceglie creando la lega — **1, 3, 6, 12 o 24 ore** — e si
 cambia in Impostazioni. Con giri da 12 ore un'asta da 5 giri dura due giorni e
-mezzo; da 3 ore si chiude in una serata. Puntare su un giocatore solo per giro
+mezzo; da 3 ore si chiude in una serata; da 24 ore dà tempo a tutti ma allunga. Puntare su un giocatore solo per giro
 è il modo peggiore: se lo perdi, quel giro non ti è costato crediti ma tempo.
 
 **Le offerte sono segrete davvero**, non solo nascoste nell'interfaccia: le

@@ -31,7 +31,7 @@ export const DEFAULT_ORE = 12;
 export const DEFAULT_SALTI = 2;
 
 /** Le durate proposte per un giro, in ore. */
-export const ORE_GIRO = [1, 3, 6, 12];
+export const ORE_GIRO = [1, 3, 6, 12, 24];
 
 /**
  * Il regolamento delle buste chiuse in parole, un punto per riga.

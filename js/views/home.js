@@ -1,7 +1,7 @@
 import { el, toast } from "../ui.js";
 import { DEFAULTS } from "../config.js";
-import { ORE_GIRO } from "../sealed.js";
 import { AUCTION_MODES } from "../config.js";
+import { campiModo, applicaCampiModo } from "./modeparams.js";
 import myLeaguesSection from "./myleagues.js";
 import openLeaguesSection from "./openleagues.js";
 
@@ -52,7 +52,7 @@ function step(n, title, text) {
 /* ------------------------------ crea lega ------------------------------ */
 
 function openCreate(ctx) {
-  import("../ui.js").then(({ modal, el: e }) => {
+  import("../ui.js").then(({ modal, el: e, render }) => {
     modal((close) => {
       const form = e("form.stack", { onsubmit: onSubmit },
         e("h2", "Nuova lega"),
@@ -79,27 +79,12 @@ function openCreate(ctx) {
           "I titolari devono essere meno dei giocatori in rosa: la differenza è la panchina."),
 
         e("label.field", "Come si compongono le rose",
-          e("select", { name: "modo", onchange: aggiornaDesc },
+          e("select", { name: "modo", onchange: aggiornaModo },
             AUCTION_MODES.map((m) => e("option", { value: m.id }, m.nome)))),
         e("p.muted.small", { id: "modo-desc", style: "margin:0" },
           AUCTION_MODES[0].desc),
 
-        e("div.row", { style: "gap:.6rem" },
-          e("div", { style: "flex:1;min-width:150px" },
-            e("label.field", "Buste chiuse: durata di ogni giro",
-              e("select", { name: "sealedhours" },
-                ORE_GIRO.map((h) => e("option", {
-                  value: String(h), selected: h === DEFAULTS.sealedHours,
-                }, `${h} ${h === 1 ? "ora" : "ore"}`))))),
-          e("div", { style: "flex:1;min-width:150px" },
-            e("label.field", "Salary cap: durata della finestra",
-              e("select", { name: "salarydays" },
-                [1, 2, 3, 7].map((g) => e("option", {
-                  value: String(g), selected: g === DEFAULTS.salaryDays,
-                }, `${g} ${g === 1 ? "giorno" : "giorni"}`)))))),
-        e("p.muted.small", { style: "margin:0" },
-          "Le due durate contano solo per la modalità corrispondente. Il draft "
-          + "usa i secondi per scelta (60), modificabili poi nelle Impostazioni."),
+        e("div", { id: "modo-params" }, campiModo("live")),
 
         e("label.row", { style: "gap:.5rem;font-size:.9rem" },
           e("input", { type: "checkbox", name: "open", style: "width:auto" }),
@@ -111,10 +96,12 @@ function openCreate(ctx) {
         ),
       );
 
-      function aggiornaDesc(e) {
-        const m = AUCTION_MODES.find((x) => x.id === e.target.value);
+      function aggiornaModo(ev) {
+        const modo = ev.target.value;
+        const m = AUCTION_MODES.find((x) => x.id === modo);
         const p = form.querySelector("#modo-desc");
         if (m && p) p.textContent = m.desc;
+        render(form.querySelector("#modo-params"), campiModo(modo));
       }
 
       async function onSubmit(ev) {
@@ -131,15 +118,15 @@ function openCreate(ctx) {
         btn.textContent = "Creo…";
         try {
           await ctx.store.setName(String(f.get("user")).trim());
+          const extra = { auctionMode: String(f.get("modo") || "live") };
+          applicaCampiModo(extra, f);
           const id = await ctx.store.createLeague({
             name: String(f.get("name")).trim(),
             budget: Number(f.get("budget")),
             rosterSize: roster,
             lineupSize: lineup,
-            auctionMode: String(f.get("modo") || "live"),
-            sealedHours: Number(f.get("sealedhours")) || DEFAULTS.sealedHours,
-            salaryDays: Number(f.get("salarydays")) || DEFAULTS.salaryDays,
             open: f.get("open") === "on",
+            ...extra,
           });
           close();
           ctx.go(`#/l/${id}/asta`);
