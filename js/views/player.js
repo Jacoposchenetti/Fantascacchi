@@ -82,7 +82,7 @@ function header(ctx, p, close) {
 
 function fantasyRow(ctx, p) {
   const owner = ctx.league ? ownerOf(ctx.league, p.id) : null;
-  const paid = owner ? ctx.league.roster[p.id].price : null;
+  const paid = owner ? ctx.league.roster?.[p.id]?.price : null;
 
   return el("div.pc-facts",
     fact("Valutazione", `${p.price}`, "crediti"),

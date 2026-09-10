@@ -23,6 +23,8 @@ import { alertNewLot, alertYourTurn, isMuted, setMuted, primeAudio, stopFlash } 
 import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
 import sealedView from "./sealed.js";
+import draftView from "./draft.js";
+import salaryView from "./salary.js";
 
 let filter = "";
 let onlyFree = true;
@@ -39,9 +41,10 @@ export default function auctionView(ctx) {
   if (!catalog) return el("div.card", "Carico il listone…");
 
   if (league.phase === "lobby") return lobbyView(ctx);
-  // Modalita' asincrona: nessun cronometro, nessuno deve essere collegato.
-  if (league.auctionMode === "sealed" && league.phase !== "season") {
-    return sealedView(ctx);
+  if (league.phase !== "season") {
+    if (league.auctionMode === "sealed") return sealedView(ctx);
+    if (league.auctionMode === "draft") return draftView(ctx);
+    if (league.auctionMode === "salary") return salaryView(ctx);
   }
   if (league.phase === "paused") return pausedStage(ctx);
   if (league.phase !== "auction") return closedStage(ctx);
@@ -486,7 +489,9 @@ function closedStage(ctx) {
   const { league } = ctx;
   return el("div.stack",
     el("div.card.stack",
-      el("h2", "Asta chiusa"),
+      el("h2", league.auctionMode === "draft" ? "Draft concluso"
+        : league.auctionMode === "salary" ? "Salary cap chiuso"
+        : "Asta chiusa"),
       el("p.muted", { style: "margin:0" },
         "Le rose sono complete. Da qui si gioca a colpi di formazione."),
       el("div.row",

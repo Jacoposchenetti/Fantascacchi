@@ -11,6 +11,8 @@ import { el, copy, confirmDialog } from "../ui.js";
 import { members, isOnline, inviteLink, nextTurnDeadline } from "../league.js";
 import { primeAudio } from "../alerts.js";
 import { regoleBusteChiuse } from "../sealed.js";
+import { ordineBase, prossimaScadenza as prossimaScadenzaDraft } from "../draft.js";
+import { prossimaScadenzaSalary } from "../salary.js";
 import { showInvite } from "./invite.js";
 
 export default function lobbyView(ctx) {
@@ -27,21 +29,16 @@ export default function lobbyView(ctx) {
       el("p.muted", { style: "margin:0" },
         `${league.budget} crediti · rosa da ${league.rosterSize} · `,
         `${league.lineupSize} titolari · `,
-        // Nelle buste chiuse i secondi del rilancio non esistono.
-        league.auctionMode === "sealed"
-          ? `giri da ${league.sealedHours || 24} ore`
-          : `${league.bidSeconds}s per rilancio`),
+        rigaModo(league)),
 
       ctx.isAdmin
         ? el("div.stack-s",
             el("button.btn.btn-primary.btn-lg", {
               disabled: ms.length < 2,
               onclick: () => startAuction(ctx),
-            }, ms.length < 2 ? "Serve almeno un altro partecipante" : "Avvia l'asta"),
+            }, ms.length < 2 ? "Serve almeno un altro partecipante" : etichettaAvvio(league)),
             el("p.small.mute-2", { style: "margin:0" },
-              allHere
-                ? "Ci siete tutti."
-                : `${online} di ${ms.length} collegati. Puoi partire lo stesso, ma chi manca si vedrà saltare il turno.`),
+              notaAvvio(league, online, ms.length, allHere)),
           )
         : el("p.muted", { style: "margin:0" },
             "L'asta comincia quando ", el("strong", league.members[league.adminUid]?.name || "chi gestisce la lega"),
@@ -96,26 +93,94 @@ export default function lobbyView(ctx) {
   );
 }
 
+function rigaModo(lg) {
+  if (lg.auctionMode === "sealed") return `buste chiuse · giri da ${lg.sealedHours || 12} ore`;
+  if (lg.auctionMode === "draft") return `draft a serpentina · ${lg.draftSeconds || 60}s a scelta`;
+  if (lg.auctionMode === "salary") return `salary cap · finestra di ${lg.salaryDays || 3} giorni`;
+  return `asta live · ${lg.bidSeconds}s per rilancio`;
+}
+
+function etichettaAvvio(lg) {
+  if (lg.auctionMode === "sealed") return "Apri il primo giro";
+  if (lg.auctionMode === "draft") return "Avvia il draft";
+  if (lg.auctionMode === "salary") return "Apri il salary cap";
+  return "Avvia l'asta";
+}
+
+function notaAvvio(lg, online, tot, allHere) {
+  if (lg.auctionMode === "sealed" || lg.auctionMode === "salary") {
+    return "Nessuno deve essere collegato: ognuno partecipa quando può, entro la scadenza.";
+  }
+  if (lg.auctionMode === "draft") {
+    return allHere ? "Ci siete tutti."
+      : `${online} di ${tot} collegati. Puoi partire lo stesso: a chi manca sceglie l'app allo scadere del tempo.`;
+  }
+  return allHere
+    ? "Ci siete tutti."
+    : `${online} di ${tot} collegati. Puoi partire lo stesso, ma chi manca si vedrà saltare il turno.`;
+}
+
 async function startAuction(ctx) {
+  const modo = ctx.league.auctionMode || "live";
+  if (modo === "draft") return startDraft(ctx);
+  if (modo === "salary") return startSalary(ctx);
+
   const ms = members(ctx.league).length;
+  const sealed = ctx.league.auctionMode === "sealed";
   const ok = await confirmDialog(
-    "Avviare l'asta?",
-    `Partite in ${ms}. Da questo momento i turni di chiamata scorrono a tempo, `
-    + "quindi conviene che siate tutti davanti allo schermo.",
-    "Avvia",
+    sealed ? "Aprire il primo giro?" : "Avviare l'asta?",
+    sealed
+      ? `Partite in ${ms}. Tutti avranno ${ctx.league.sealedHours || 12} ore per `
+        + "mandare le offerte di questo giro."
+      : `Partite in ${ms}. Da questo momento i turni di chiamata scorrono a tempo, `
+        + "quindi conviene che siate tutti davanti allo schermo.",
+    sealed ? "Apri" : "Avvia",
   );
   if (!ok) return;
-  // Il clic sblocca l'audio: dopo, gli avvisi sonori possono partire da soli.
   primeAudio();
   await ctx.mutate((lg) => {
     if (lg.phase !== "lobby") return null;
     lg.phase = "auction";
-    lg.auction = {
-      ...lg.auction,
-      status: "idle",
-      turnIdx: 0,
-      turnEndsAt: nextTurnDeadline(lg),
+    if (lg.auctionMode === "sealed") {
+      lg.sealed = { ...(lg.sealed || {}), giro: lg.sealed?.giro || 1,
+        scadenza: Date.now() + (lg.sealedHours || 12) * 3600 * 1000 };
+    } else {
+      lg.auction = { ...lg.auction, status: "idle", turnIdx: 0, turnEndsAt: nextTurnDeadline(lg) };
+    }
+    return lg;
+  });
+}
+
+async function startDraft(ctx) {
+  const ms = members(ctx.league).length;
+  const ok = await confirmDialog("Avviare il draft?",
+    `Partite in ${ms}. A turno ognuno sceglie un giocatore, `
+    + `${ctx.league.draftSeconds || 60} secondi a testa; scaduto il tempo sceglie `
+    + "l'app. L'ordine si inverte a ogni giro.", "Avvia il draft");
+  if (!ok) return;
+  primeAudio();
+  await ctx.mutate((lg) => {
+    if (lg.phase !== "lobby") return null;
+    lg.phase = "auction";
+    lg.draft = {
+      round: 1, pickIdx: 0, order: ordineBase(lg),
+      turnEndsAt: prossimaScadenzaDraft(lg),
     };
+    return lg;
+  });
+}
+
+async function startSalary(ctx) {
+  const g = ctx.league.salaryDays || 3;
+  const ok = await confirmDialog("Aprire il salary cap?",
+    `Tutti avranno ${g} ${g === 1 ? "giorno" : "giorni"} per comporre la rosa `
+    + "entro il budget. Alla scadenza chi non ha finito viene completato "
+    + "d'ufficio, e parte la stagione.", "Apri");
+  if (!ok) return;
+  await ctx.mutate((lg) => {
+    if (lg.phase !== "lobby") return null;
+    lg.phase = "auction";
+    lg.salary = { ...(lg.salary || {}), deadline: prossimaScadenzaSalary(lg) };
     return lg;
   });
 }

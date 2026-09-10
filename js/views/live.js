@@ -12,7 +12,7 @@
    --------------------------------------------------------------- */
 
 import { el, flag } from "../ui.js";
-import { members, memberName } from "../league.js";
+import { members, memberName, rosterEntries } from "../league.js";
 import { effectiveLineup } from "../season.js";
 import { creaFeed, inDiretta, linkTorneo, formattaByte, INTERVALLO_MS } from "../live.js";
 
@@ -35,8 +35,10 @@ export default function livePanel(ctx, slot) {
     }
   }
   // Chi e' in rosa ma non schierato: interessa comunque vederlo giocare.
-  for (const r of Object.values(league.roster || {})) {
-    if (!schierati.has(r.playerId)) schierati.set(r.playerId, r.ownerUid);
+  for (const m of members(league)) {
+    for (const r of rosterEntries(league, m.uid)) {
+      if (!schierati.has(r.playerId)) schierati.set(r.playerId, m.uid);
+    }
   }
 
   if (feedSlot !== slot.n) {

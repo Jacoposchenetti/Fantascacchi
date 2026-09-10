@@ -22,27 +22,56 @@ export function catalogList(catalog) {
 }
 
 /** uid del proprietario di un giocatore, o null se ancora libero. */
+/**
+ * Voci di rosa di un partecipante: [{ playerId, price, at }].
+ * Unico punto che sa dove stanno le rose in ogni modalita': live/sealed/draft
+ * usano `roster` (esclusivo, un giocatore un proprietario), salary usa
+ * `salaryRosters` (non esclusivo).
+ */
+export function rosterEntries(league, uid) {
+  if (league?.auctionMode === "salary") {
+    return Object.entries(league?.salaryRosters?.[uid] || {})
+      .map(([playerId, price]) => ({ playerId, price: Number(price) || 0, at: 0 }));
+  }
+  return Object.values(league?.roster || {}).filter((r) => r.ownerUid === uid);
+}
+
+/** Tutti i playerId in rosa a qualcuno, senza duplicati. Per il calcolo punti. */
+export function allOwnedPlayerIds(league) {
+  const out = new Set();
+  if (league?.auctionMode === "salary") {
+    for (const r of Object.values(league?.salaryRosters || {})) {
+      for (const pid of Object.keys(r || {})) out.add(pid);
+    }
+  } else {
+    for (const r of Object.values(league?.roster || {})) out.add(r.playerId);
+  }
+  return [...out];
+}
+
+/**
+ * uid del proprietario ESCLUSIVO di un giocatore, o null.
+ * In salary cap nessuno lo possiede in esclusiva, quindi sempre null.
+ */
 export function ownerOf(league, pid) {
+  if (league?.auctionMode === "salary") return null;
   return league?.roster?.[pid]?.ownerUid || null;
 }
 
 /** Rosa di un partecipante: [{player, price, at}] ordinata per prezzo. */
 export function rosterOf(league, catalog, uid) {
-  return Object.values(league?.roster || {})
-    .filter((r) => r.ownerUid === uid)
+  return rosterEntries(league, uid)
     .map((r) => ({ ...r, player: catalog.map.get(r.playerId) }))
     .filter((r) => r.player)
     .sort((a, b) => b.price - a.price);
 }
 
 export function spentBy(league, uid) {
-  return Object.values(league?.roster || {})
-    .filter((r) => r.ownerUid === uid)
-    .reduce((s, r) => s + (r.price || 0), 0);
+  return rosterEntries(league, uid).reduce((s, r) => s + (r.price || 0), 0);
 }
 
 export function ownedCount(league, uid) {
-  return Object.values(league?.roster || {}).filter((r) => r.ownerUid === uid).length;
+  return rosterEntries(league, uid).length;
 }
 
 export function budgetLeft(league, uid) {

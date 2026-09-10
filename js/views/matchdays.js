@@ -9,7 +9,7 @@
 
 import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
 import { scoreMatchday } from "../scoring.js";
-import { members, memberName } from "../league.js";
+import { members, memberName, allOwnedPlayerIds } from "../league.js";
 import { lineupsFor, effectiveLineup, readyCount, dataLunga, quando } from "../season.js";
 import livePanel, { inDiretta, linkTorneo } from "./live.js";
 
@@ -166,7 +166,7 @@ function scoreTable(ctx, slot, res) {
  * Chi non compare non ha giocato: e' il caso che fa entrare la panchina.
  */
 export function resultsMap(ctx, slot, res) {
-  const owned = [...new Set(Object.values(ctx.league.roster || {}).map((r) => r.playerId))];
+  const owned = allOwnedPlayerIds(ctx.league);
 
   // Imprese per username: [gap, gap, ...]. Le entry sono [username, gap, turno].
   const imprese = new Map();

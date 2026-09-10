@@ -23,7 +23,8 @@ const LS_BIDS = (id) => `fsc:bids:${id}`;
 
 /** Scheletro di una lega nuova. */
 export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
-                            bidSeconds, turnSeconds, auctionMode, sealedHours, open }) {
+                            bidSeconds, turnSeconds, auctionMode, sealedHours,
+                            draftSeconds, salaryDays, open }) {
   const id = shortId(6);
   return {
     id,
@@ -57,6 +58,13 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
     open: Boolean(open),
     sealed: { giro: 1, scadenza: 0, ultimoRisultato: [], risoltoIl: 0 },
     sealedHours: sealedHours ?? DEFAULTS.sealedHours,
+    // Draft a serpentina: turni, nessun budget.
+    draft: { round: 1, pickIdx: 0, turnEndsAt: 0, order: [] },
+    draftSeconds: draftSeconds ?? DEFAULTS.draftSeconds,
+    // Salary cap: rose non esclusive, prezzo fisso = valutazione del listone.
+    salaryRosters: {},
+    salary: { deadline: 0 },
+    salaryDays: salaryDays ?? DEFAULTS.salaryDays,
     // La stagione parte quando si chiude l'asta: da li' in poi le giornate
     // si generano da sole dai Titled Tuesday che arrivano.
     season: { startsAt: 0, matchdays: DEFAULTS.matchdays },

@@ -25,16 +25,26 @@ senza capire perché. Le icone si rigenerano con `python tools/build_icons.py`.
 
 Il gioco ha due tempi con esigenze opposte, come nel fantacalcio vero.
 
-### Due modi di fare l'asta
+### Quattro modi di comporre le rose
 
 Si sceglie creando la lega, e cambia tutto:
 
-| | **Live** | **Buste chiuse** |
-|---|---|---|
-| Quando | tutti insieme, una serata | ognuno quando può |
-| Meccanica | chiamata e rilancio col cronometro | offerta segreta per giocatore |
-| Durata | una mezz'ora | giri da 1, 3, 6 o 12 ore (default 12) |
-| Serve che | siate tutti collegati | nessuno sia collegato |
+| | **Live** | **Buste chiuse** | **Draft** | **Salary cap** |
+|---|---|---|---|---|
+| Quando | tutti insieme | ognuno quando può | tutti insieme (o a turni lenti) | ognuno quando può |
+| Meccanica | chiamata e rilancio | offerta segreta per giocatore | scelta a turno, ordine a serpentina | prezzo fisso, componi entro budget |
+| Soldi | budget, si spende | budget, si spende | nessuno | budget, prezzo = valutazione |
+| Rose esclusive | sì | sì | sì | **no**, lo stesso giocatore in più rose |
+| Durata | ~mezz'ora | giri da 1–12 ore | dipende dai secondi a scelta (60) | finestra di 1, 2, 3 o 7 giorni |
+
+**Draft** — a turno ognuno prende un giocatore libero; l'ordine si inverte a
+ogni giro (1‑2‑3, poi 3‑2‑1). Niente rilanci, niente budget. Allo scadere del
+tempo sceglie l'app (il più quotato ancora libero), così non si blocca.
+
+**Salary cap** — modello Fantasy Premier League: ogni giocatore ha il prezzo
+del listino, ognuno compone la rosa in autonomia entro il budget, e **le rose
+non sono esclusive**. Alla scadenza chi non ha finito viene completato
+d'ufficio con i più economici che entrano nel budget.
 
 Nelle **buste chiuse** si manda un'offerta segreta per ogni giocatore che si
 vuole. Alla scadenza del giro si risolve tutto in una volta: si assegna dal

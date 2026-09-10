@@ -1,6 +1,7 @@
 import { el, toast } from "../ui.js";
 import { DEFAULTS } from "../config.js";
 import { ORE_GIRO } from "../sealed.js";
+import { AUCTION_MODES } from "../config.js";
 import myLeaguesSection from "./myleagues.js";
 import openLeaguesSection from "./openleagues.js";
 
@@ -77,22 +78,28 @@ function openCreate(ctx) {
         e("p.muted.small", { style: "margin:0" },
           "I titolari devono essere meno dei giocatori in rosa: la differenza è la panchina."),
 
-        e("label.field", "Come si fa l'asta",
-          e("select", { name: "modo" },
-            e("option", { value: "live" }, "Live — tutti insieme, col cronometro"),
-            e("option", { value: "sealed" }, "Buste chiuse — offerte segrete, ognuno quando può"),
-          )),
-        e("label.field", "Se a buste chiuse: durata di ogni giro",
-          e("select", { name: "sealedhours" },
-            ORE_GIRO.map((h) => e("option", {
-              value: String(h), selected: h === DEFAULTS.sealedHours,
-            }, `${h} ${h === 1 ? "ora" : "ore"}`)))),
+        e("label.field", "Come si compongono le rose",
+          e("select", { name: "modo", onchange: aggiornaDesc },
+            AUCTION_MODES.map((m) => e("option", { value: m.id }, m.nome)))),
+        e("p.muted.small", { id: "modo-desc", style: "margin:0" },
+          AUCTION_MODES[0].desc),
+
+        e("div.row", { style: "gap:.6rem" },
+          e("div", { style: "flex:1;min-width:150px" },
+            e("label.field", "Buste chiuse: durata di ogni giro",
+              e("select", { name: "sealedhours" },
+                ORE_GIRO.map((h) => e("option", {
+                  value: String(h), selected: h === DEFAULTS.sealedHours,
+                }, `${h} ${h === 1 ? "ora" : "ore"}`))))),
+          e("div", { style: "flex:1;min-width:150px" },
+            e("label.field", "Salary cap: durata della finestra",
+              e("select", { name: "salarydays" },
+                [1, 2, 3, 7].map((g) => e("option", {
+                  value: String(g), selected: g === DEFAULTS.salaryDays,
+                }, `${g} ${g === 1 ? "giorno" : "giorni"}`)))))),
         e("p.muted.small", { style: "margin:0" },
-          "L'asta live è una serata da passare insieme. Le buste chiuse non "
-          + "richiedono che siate collegati: si manda un'offerta segreta per ogni "
-          + "giocatore e alla scadenza del giro si assegna tutto. Se le rose non "
-          + "sono piene parte un altro giro, finché tutti non hanno completato — e "
-          + "chi salta due giri di fila si vede riempire la rosa d'ufficio."),
+          "Le due durate contano solo per la modalità corrispondente. Il draft "
+          + "usa i secondi per scelta (60), modificabili poi nelle Impostazioni."),
 
         e("label.row", { style: "gap:.5rem;font-size:.9rem" },
           e("input", { type: "checkbox", name: "open", style: "width:auto" }),
@@ -103,6 +110,12 @@ function openCreate(ctx) {
           e("button.btn.btn-primary", { type: "submit" }, "Crea"),
         ),
       );
+
+      function aggiornaDesc(e) {
+        const m = AUCTION_MODES.find((x) => x.id === e.target.value);
+        const p = form.querySelector("#modo-desc");
+        if (m && p) p.textContent = m.desc;
+      }
 
       async function onSubmit(ev) {
         ev.preventDefault();
@@ -125,6 +138,7 @@ function openCreate(ctx) {
             lineupSize: lineup,
             auctionMode: String(f.get("modo") || "live"),
             sealedHours: Number(f.get("sealedhours")) || DEFAULTS.sealedHours,
+            salaryDays: Number(f.get("salarydays")) || DEFAULTS.salaryDays,
             open: f.get("open") === "on",
           });
           close();

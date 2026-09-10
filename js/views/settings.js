@@ -35,6 +35,7 @@ function promptDialog(title, text) {
 }
 import { SCORING } from "../config.js";
 import { ORE_GIRO, DEFAULT_ORE } from "../sealed.js";
+import { AUCTION_MODES, DEFAULTS } from "../config.js";
 import { members, memberName, ownedCount, inviteLink } from "../league.js";
 import { fetchProfile } from "../chesscom.js";
 import { showInvite } from "./invite.js";
@@ -209,6 +210,9 @@ function leagueForm(ctx, auctionStarted) {
         lg.turnSeconds = Number(f.get("turnsecs"));
         lg.season = { ...(lg.season || {}), matchdays: Number(f.get("giornate")) };
         lg.sealedHours = Number(f.get("sealedhours")) || DEFAULT_ORE;
+        lg.salaryDays = Number(f.get("salarydays")) || DEFAULTS.salaryDays;
+        lg.draftSeconds = Number(f.get("draftsecs")) || DEFAULTS.draftSeconds;
+        if (!auctionStarted) lg.auctionMode = String(f.get("modo")) || lg.auctionMode;
         return lg;
       });
       toast("Impostazioni salvate", "ok");
@@ -241,6 +245,24 @@ function leagueForm(ctx, auctionStarted) {
             ORE_GIRO.map((h) => el("option", {
               value: String(h), selected: h === (league.sealedHours || DEFAULT_ORE),
             }, `${h} ${h === 1 ? "ora" : "ore"}`)))))),
+
+    el("div.row",
+      el("div", { style: "flex:1;min-width:150px" },
+        el("label.field", "Modalità",
+          el("select", { name: "modo", disabled: auctionStarted },
+            AUCTION_MODES.map((m) => el("option", {
+              value: m.id, selected: m.id === (league.auctionMode || "live"),
+            }, m.nome))))),
+      el("div", { style: "flex:1;min-width:150px" },
+        el("label.field", "Salary cap: durata finestra",
+          el("select", { name: "salarydays" },
+            [1, 2, 3, 7].map((g) => el("option", {
+              value: String(g), selected: g === (league.salaryDays || DEFAULTS.salaryDays),
+            }, `${g} ${g === 1 ? "giorno" : "giorni"}`))))),
+      el("div", { style: "flex:1;min-width:150px" },
+        el("label.field", "Draft: secondi a scelta",
+          el("input", { type: "number", name: "draftsecs", min: 15, max: 300,
+            value: league.draftSeconds || DEFAULTS.draftSeconds })))),
 
     el("p.small.mute-2", { style: "margin:0" },
       "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta. "

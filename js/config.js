@@ -49,7 +49,23 @@ export const DEFAULTS = {
   matchdays: 10,     // durata della stagione, in Titled Tuesday
   sealedHours: 12,   // durata di un giro di buste chiuse (ore)
   sealedSkipLimit: 2, // giri saltati di fila, poi la rosa si riempie d'ufficio
+  draftSeconds: 60,  // tempo per scegliere quando tocca a te nel draft
+  salaryDays: 3,     // finestra del salary cap, in giorni
 };
+
+/** Modalita' d'asta disponibili, con etichetta e descrizione brevi. */
+export const AUCTION_MODES = [
+  { id: "live",   nome: "Asta live",
+    desc: "Tutti insieme col cronometro. Si nomina un giocatore e si rilancia." },
+  { id: "sealed", nome: "Buste chiuse",
+    desc: "Offerte segrete entro una scadenza, ognuno quando può. Poi si risolve." },
+  { id: "draft",  nome: "Draft a serpentina",
+    desc: "Niente soldi: a turno ognuno sceglie un giocatore, l'ordine si "
+      + "inverte a ogni giro. Rose esclusive." },
+  { id: "salary", nome: "Salary cap",
+    desc: "Ogni giocatore ha un prezzo fisso. Componi la rosa entro il budget, "
+      + "quando vuoi. Lo stesso giocatore può stare in più rose." },
+];
 
 /** Un partecipante e' "online" se ha dato un segno di vita di recente. */
 export const PRESENCE_TTL = 45 * 1000;
