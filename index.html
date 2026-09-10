@@ -50,6 +50,15 @@
         console.info("Service worker non registrato:", e.message);
       });
     });
+    // Quando il worker nuovo prende il controllo, ricarica una volta sola:
+    // cosi' chi aveva l'app aperta passa al codice nuovo senza accorgersene.
+    let ricaricato = false;
+    navigator.serviceWorker.addEventListener("message", (ev) => {
+      if (ev.data && ev.data.tipo === "sw-aggiornato" && !ricaricato) {
+        ricaricato = true;
+        location.reload();
+      }
+    });
   }
 </script>
 <noscript><p style="padding:2rem;font:16px system-ui">Fantascacchi ha bisogno di JavaScript attivo.</p></noscript>

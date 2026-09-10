@@ -1,19 +1,21 @@
 /* ---------------------------------------------------------------
    Service worker.
 
-   Strategia: RETE PER PRIMA, cache come rete di scorta.
+   Strategia: RETE PER PRIMA, e la rete davvero — non la cache del
+   browser. La cache resta solo come scorta per l'offline.
 
-   La tentazione sarebbe servire dalla cache per velocita', ma qui sarebbe
-   un danno: l'app si aggiorna a ogni push su GitHub Pages, e i risultati
-   dei tornei arrivano ogni mercoledi'. Con la cache per prima la gente
-   resterebbe su una versione vecchia senza capire perche', e i punteggi
-   sembrerebbero fermi.
+   Il perche' e' costato una lezione: la prima versione faceva
+   `fetch(req)` liscio. GitHub Pages serve i file con max-age 600, quindi
+   quel fetch veniva soddisfatto dalla cache HTTP del browser e restituiva
+   codice vecchio di dieci minuti — o piu', se un modulo restava indietro
+   rispetto agli altri. L'app si vedeva a meta' aggiornata.
 
-   Cosi' invece: se c'e' rete si prende sempre l'ultima versione, e se non
-   c'e' si apre lo stesso con quello che si era gia' visto.
+   Ora ogni richiesta al nostro sito parte con `cache: "reload"`: bypassa
+   la cache HTTP e chiede sempre al server. Se il file non e' cambiato il
+   server risponde 304 e il corpo non viaggia comunque.
    --------------------------------------------------------------- */
 
-const VERSIONE = "fantascacchi-v1";
+const VERSIONE = "fantascacchi-v3";
 
 // Il minimo per far comparire qualcosa anche offline.
 const GUSCIO = [
@@ -27,20 +29,23 @@ const GUSCIO = [
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(VERSIONE)
-      // Se un file manca non deve far fallire tutta l'installazione.
-      .then((c) => Promise.allSettled(GUSCIO.map((u) => c.add(u))))
+      .then((c) => Promise.allSettled(
+        GUSCIO.map((u) => c.add(new Request(u, { cache: "reload" }))),
+      ))
       .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((chiavi) => Promise.all(
-        chiavi.filter((k) => k !== VERSIONE).map((k) => caches.delete(k)),
-      ))
-      .then(() => self.clients.claim()),
-  );
+  e.waitUntil((async () => {
+    const chiavi = await caches.keys();
+    await Promise.all(chiavi.filter((k) => k !== VERSIONE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+    // Dice alle schede aperte di ricaricarsi: cosi' chi aveva l'app
+    // aperta con il codice vecchio passa al nuovo senza doverci pensare.
+    const tabs = await self.clients.matchAll({ type: "window" });
+    for (const t of tabs) t.postMessage({ tipo: "sw-aggiornato" });
+  })());
 });
 
 self.addEventListener("fetch", (e) => {
@@ -52,9 +57,9 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin) return;
 
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: "reload" })
       .then((res) => {
-        if (res && res.ok) {
+        if (res && res.ok && res.type === "basic") {
           const copia = res.clone();
           caches.open(VERSIONE).then((c) => c.put(req, copia));
         }
@@ -63,7 +68,6 @@ self.addEventListener("fetch", (e) => {
       .catch(async () => {
         const salvato = await caches.match(req);
         if (salvato) return salvato;
-        // Navigazione senza rete: si apre comunque l'app.
         if (req.mode === "navigate") {
           const home = await caches.match("./index.html");
           if (home) return home;
