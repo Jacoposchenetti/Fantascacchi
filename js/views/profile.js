@@ -8,6 +8,7 @@
 
 import { el, modal } from "../ui.js";
 import myLeaguesSection from "./myleagues.js";
+import { controlloNotifiche } from "./avvisi.js";
 
 export function showProfile(ctx, { legaCorrente = null } = {}) {
   const me = ctx.store.me;
@@ -29,6 +30,8 @@ export function showProfile(ctx, { legaCorrente = null } = {}) {
 
     el("div.pc-body",
       myLeaguesSection(ctx, { titolo: "Le tue altre leghe", escludi: legaCorrente }),
+
+      el("div.card", controlloNotifiche(ctx)),
 
       el("div.row", { style: "gap:.6rem" },
         el("a.btn.btn-sm", { href: "#/", onclick: close }, "Home"),

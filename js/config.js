@@ -26,6 +26,20 @@ const FORCE_LOCAL = typeof location !== "undefined"
 export const HAS_FIREBASE = Boolean(FIREBASE_CONFIG.apiKey) && !FORCE_LOCAL;
 
 /**
+ * Chiave pubblica VAPID per le notifiche push.
+ *
+ * E' pubblica per definizione: il browser la manda al servizio di push per
+ * dire "accetto messaggi firmati da chi possiede la meta' privata". Quella
+ * privata sta come secret di Cloud Functions e non deve MAI finire qui.
+ *
+ * Se un giorno la si rigenera, tutte le iscrizioni esistenti diventano
+ * carta straccia: il client se ne accorge da solo e si reiscrive (vedi
+ * `stessaChiave` in push.js).
+ */
+export const VAPID_PUBLIC =
+  "BAq5k944D6itfH_4m1zEOzHxBWQ5yBFGO2i2g6wigYHpZPTJ15eZQuumJNDkwAWjsz6nmoVYIhasmFsHwNSK8yU";
+
+/**
  * Metodi di accesso attivi sul progetto Firebase.
  * Devono corrispondere a Authentication > Sign-in method nella console:
  * mostrare un pulsante per un provider spento porta solo a un errore.

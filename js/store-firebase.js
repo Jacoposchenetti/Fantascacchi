@@ -20,6 +20,18 @@ import { newLeague, normalizzaMembri, riassunto } from "./store.js";
 const V = "10.12.2";
 const LS_NAME = "fsc:name";
 
+/**
+ * Un id corto e stabile a partire dall'endpoint push. Gli endpoint sono
+ * URL lunghi e pieni di caratteri che Firestore non accetta come nome di
+ * documento, quindi si usa il loro digest.
+ */
+async function idDispositivo(endpoint) {
+  const dati = new TextEncoder().encode(endpoint);
+  const hash = await crypto.subtle.digest("SHA-256", dati);
+  return [...new Uint8Array(hash)].slice(0, 12)
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function firebaseAdapter() {
   const [{ initializeApp }, authMod, fsMod] = await Promise.all([
     import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
@@ -79,6 +91,11 @@ export async function firebaseAdapter() {
   // impedirne la lettura altrui finche' la scadenza non e' passata.
   const bidRef = (id, uid) => doc(db, "leagues", id, "bids", uid);
   const bidColl = (id) => collection(db, "leagues", id, "bids");
+
+  // Iscrizioni push: una per dispositivo, sotto l'utente. Non stanno dentro
+  // la lega perche' l'identita' e' la stessa in tutte le leghe: iscriversi
+  // una volta vale per ovunque si giochi.
+  const pushRef = (uid, devId) => doc(db, "pushSubs", uid, "devices", devId);
 
   /** Traduce i codici Firebase in qualcosa di leggibile. */
   function authError(e) {
@@ -242,6 +259,30 @@ export async function firebaseAdapter() {
 
     async touchPresence(id, uid) {
       await setDoc(presRef(id, uid), { at: Date.now() });
+    },
+
+    /* ------------------------------ notifiche -------------------------- */
+
+    /**
+     * Registra questo dispositivo per le push. L'id del documento e' un
+     * digest dell'endpoint: risalvare la stessa iscrizione aggiorna la riga
+     * invece di moltiplicarla, cosi' chi apre l'app ogni giorno non si
+     * ritrova venti copie di se stesso.
+     */
+    async savePushSub(sub) {
+      if (!me) return;
+      await setDoc(pushRef(me.uid, await idDispositivo(sub.endpoint)), {
+        uid: me.uid,
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth },
+        ua: navigator.userAgent || "",
+        at: Date.now(),
+      });
+    },
+
+    async removePushSub(sub) {
+      if (!me) return;
+      await deleteDoc(pushRef(me.uid, await idDispositivo(sub.endpoint)));
     },
 
     /* ----------------------------- buste chiuse ------------------------ */

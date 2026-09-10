@@ -1,0 +1,19 @@
+{
+  "name": "fantascacchi-functions",
+  "description": "Notifiche push di Fantascacchi",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "logs": "firebase functions:log",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0",
+    "web-push": "^3.6.7"
+  }
+}

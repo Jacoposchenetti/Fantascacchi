@@ -21,6 +21,77 @@ prima sarebbe più veloce ma qui farebbe danno: l'app si aggiorna a ogni push
 e i risultati arrivano ogni mercoledì, quindi la gente resterebbe indietro
 senza capire perché. Le icone si rigenerano con `python tools/build_icons.py`.
 
+Un invito a installarla compare da solo, ma con misura: mai alla prima
+visita, mai due banner insieme, e chi lo chiude non lo rivede per due
+settimane. Al secondo rifiuto sparisce e resta solo il comando nel profilo.
+
+## Notifiche
+
+Servono perché mezze meccaniche del gioco hanno una scadenza: un giro di
+buste chiuse dura ore, il turno del draft scorre, e il martedì la
+formazione si blocca alle 15:00 UTC che tu ci sia o no.
+
+Cosa fa arrivare un avviso:
+
+| Quando | A chi |
+|---|---|
+| Qualcuno entra nella tua lega | a chi l'ha creata |
+| L'asta parte, va in pausa o si chiude | a tutti |
+| Tocca a te chiamare (live) o scegliere (draft) | solo a te |
+| Si apre un nuovo giro di buste chiuse | a chi non ha la rosa piena |
+| Manca un'ora alla chiusura del giro e non hai offerto | solo a te |
+| La rosa ti è stata riempita d'ufficio | solo a te |
+| Il salary cap chiude fra due ore e la rosa è incompleta | solo a te |
+| Titled Tuesday fra poche ore e non hai schierato | a chi non ha schierato |
+
+Il permesso non viene chiesto all'avvio: l'invito compare dentro una lega,
+dove la richiesta ha un senso visibile, e si accende o si spegne quando si
+vuole dal profilo (il proprio nome in alto a destra). Ogni dispositivo fa
+storia a sé: spegnerle sul telefono non le spegne sul portatile.
+
+**Su iPhone servono dall'app aggiunta alla schermata home.** Non è una
+nostra scelta: in Safari `PushManager` non esiste proprio, e compare solo
+quando l'app gira dall'icona. Per questo l'invito a installare viene prima.
+
+### Come sono fatte
+
+Web Push standard con chiavi VAPID, senza SDK di messaggistica lato client:
+`pushManager.subscribe()` è API nativa e uguale ovunque, Safari compreso.
+L'iscrizione finisce in `pushSubs/{uid}/devices/{id}`, un documento per
+dispositivo, leggibile solo dal proprietario — un endpoint push è di fatto
+una chiave per far squillare quel telefono, e non va mostrato agli altri
+partecipanti.
+
+A spedire sono due Cloud Functions in `functions/` (Node 22, `europe-west1`
+perché Firestore sta su `eur3`):
+
+- **`legaCambiata`** — trigger su `leagues/{id}`. Confronta il documento
+  prima e dopo e traduce la differenza in avvisi. È il modo giusto per gli
+  eventi: arrivano nell'istante esatto e non interrogano niente.
+- **`promemoria`** — ogni quarto d'ora, per le **scadenze**, che per
+  definizione non generano nessuna scrittura: nessuno tocca la lega nel
+  momento in cui mancano sessanta minuti alla chiusura di un giro.
+
+Cosa è già stato mandato si segna in `promemoria/{lega}`, apposta **fuori**
+dal documento della lega: scriverlo dentro farebbe ripartire il trigger, e
+poi di nuovo, all'infinito.
+
+Le iscrizioni morte (telefono cambiato, app disinstallata) rispondono 404 o
+410 e vengono cancellate al primo tentativo fallito, altrimenti resterebbero
+lì per sempre a far pagare un errore a ogni notifica.
+
+### Se cambi le chiavi
+
+`node -e` con `crypto.generateKeyPairSync("ec", …)` genera la coppia; la
+pubblica va in `VAPID_PUBLIC` dentro `js/config.js`, la privata in un secret:
+
+```bash
+firebase functions:secrets:set VAPID_PRIVATE_KEY
+```
+
+Rigenerarle invalida tutte le iscrizioni esistenti, ma non è un dramma: il
+client se ne accorge da solo, butta la vecchia e si reiscrive.
+
 ## Come si svolge
 
 Il gioco ha due tempi con esigenze opposte, come nel fantacalcio vero.

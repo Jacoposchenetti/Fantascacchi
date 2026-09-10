@@ -15,7 +15,7 @@
    server risponde 304 e il corpo non viaggia comunque.
    --------------------------------------------------------------- */
 
-const VERSIONE = "fantascacchi-v3";
+const VERSIONE = "fantascacchi-v4";
 
 // Il minimo per far comparire qualcosa anche offline.
 const GUSCIO = [
@@ -75,4 +75,61 @@ self.addEventListener("fetch", (e) => {
         return new Response("Offline", { status: 503, statusText: "Offline" });
       }),
   );
+});
+
+/* ------------------------------- notifiche ------------------------------ */
+/*
+   La push arriva anche ad app chiusa: e' il service worker a svegliarsi,
+   non la pagina. Il corpo lo prepara la Cloud Function, qui si traduce
+   solo in una notifica di sistema.
+
+   `userVisibleOnly` ci obbliga a mostrare SEMPRE qualcosa: se il payload
+   fosse illeggibile va mostrato comunque un messaggio generico, altrimenti
+   il browser ci toglie il permesso dopo qualche volta.
+*/
+
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = {}; }
+
+  const titolo = d.titolo || "Fantascacchi";
+  const opzioni = {
+    body: d.corpo || "Novita' nella tua lega.",
+    icon: "./data/icons/icona-192.png",
+    badge: "./data/icons/icona-192.png",
+    lang: "it",
+    // Stesso tag = la nuova sostituisce la vecchia invece di impilarsi.
+    // Un promemoria d'asta che si ripete non deve riempire il centro notifiche.
+    tag: d.tag || "fantascacchi",
+    renotify: true,
+    timestamp: Date.now(),
+    vibrate: [90, 60, 90],
+    data: { url: d.url || "./" },
+  };
+
+  e.waitUntil(self.registration.showNotification(titolo, opzioni));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  // Base = lo scope del worker, non l'origine: su GitHub Pages l'app vive
+  // in una sottocartella, e risolvere sull'origine porterebbe alla radice
+  // del dominio, cioe' da tutt'altra parte.
+  const base = self.registration.scope;
+  const url = new URL(e.notification.data?.url || "./", base).href;
+
+  // Se l'app e' gia' aperta da qualche parte si riusa quella finestra:
+  // aprirne una seconda lascerebbe due copie della stessa lega.
+  e.waitUntil((async () => {
+    const tabs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const t of tabs) {
+      if (!t.url.startsWith(base)) continue;
+      await t.focus();
+      if (t.url !== url && "navigate" in t) {
+        try { await t.navigate(url); } catch { /* alcuni browser non lo permettono */ }
+      }
+      return;
+    }
+    await self.clients.openWindow(url);
+  })());
 });

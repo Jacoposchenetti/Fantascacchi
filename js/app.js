@@ -12,6 +12,8 @@ import { getStore } from "./store.js";
 import { loadCatalog, isAdmin as isAdminOf, inviteLink } from "./league.js";
 import { PRESENCE_BEAT } from "./config.js";
 import { loadCalendar, seasonPlan, loadResults } from "./season.js";
+import { initInstall } from "./install.js";
+import { initAvvisi, avvisiSlot } from "./views/avvisi.js";
 
 import homeView from "./views/home.js";
 import loginView from "./views/login.js";
@@ -277,6 +279,7 @@ function renderApp() {
   const root = $("#view");
   const snap = captureFocus();
   renderChrome();
+  renderAvvisi();
 
   try {
     if (!isAuthed()) {
@@ -308,6 +311,22 @@ function renderApp() {
 
   restoreFocus(snap);
   document.title = state.league ? `${state.league.name} · Fantascacchi` : "Fantascacchi";
+}
+
+/**
+ * La striscia degli inviti in cima. Solo da loggati: a chi deve ancora
+ * entrare non si chiede di installare niente.
+ */
+function renderAvvisi() {
+  const slot = $("#avvisi");
+  if (!slot) return;
+  if (!isAuthed()) { render(slot); return; }
+  try {
+    render(slot, avvisiSlot({ ...buildCtxLite(), league: state.league }));
+  } catch (err) {
+    console.error("avvisi", err);
+    render(slot);
+  }
 }
 
 /** Contesto ridotto per le viste che non hanno una lega caricata. */
@@ -352,6 +371,8 @@ async function onRouteChange() {
 }
 
 async function main() {
+  // Prima di tutto: l'evento di installazione arriva presto e una volta sola.
+  initInstall();
   try {
     state.store = await getStore();
   } catch (err) {
@@ -366,6 +387,10 @@ async function main() {
   // da un link d'invito ci finisce sopra subito dopo essersi autenticato.
   state.store.onAuthChange(() => { onRouteChange(); });
   await onRouteChange();
+
+  // In coda: legge lo stato delle notifiche e riallinea l'iscrizione push.
+  // Non deve rallentare il primo disegno, quindi niente await.
+  initAvvisi(buildCtxLite()).catch(() => {});
 
   if (state.store.mode === "local") {
     console.info("Fantascacchi: modalita' LOCALE (dati solo in questo browser). "

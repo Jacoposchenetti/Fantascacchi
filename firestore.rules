@@ -56,6 +56,16 @@ service cloud.firestore {
       }
     }
 
+    // Iscrizioni alle notifiche push: un documento per dispositivo.
+    //
+    // Rigorosamente private. Un endpoint push e' una capability: chi ce
+    // l'ha puo' mandare notifiche a quel telefono, quindi non deve essere
+    // leggibile dagli altri partecipanti. A leggerle e' solo la Cloud
+    // Function, che gira con l'Admin SDK e queste regole non le vede.
+    match /pushSubs/{uid}/devices/{deviceId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Tutto il resto e' chiuso.
     match /{document=**} {
       allow read, write: if false;

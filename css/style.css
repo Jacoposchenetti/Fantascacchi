@@ -493,3 +493,19 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Striscia degli inviti (installa l'app, accendi le notifiche).
+   Sta sopra il contenuto ma dentro la stessa colonna, cosi' non sembra
+   una barra di sistema calata dall'alto. Su schermo stretto i pulsanti
+   scendono sotto il testo invece di schiacciarlo. */
+.avvisi:empty { display: none; }
+.avvisi {
+  max-width: 1080px; margin: 0 auto;
+  padding: clamp(.75rem, 3vw, 1rem) clamp(.75rem, 3vw, 1.5rem) 0;
+}
+.avviso {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .9rem; flex-wrap: wrap;
+}
+.avviso-testo { flex: 1 1 16rem; min-width: 0; }
+.avviso strong { color: var(--text); }
