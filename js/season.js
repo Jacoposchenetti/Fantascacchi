@@ -192,7 +192,7 @@ async function fromStatic(id) {
       Object.entries(ev.standings || {}).map(([u, [p, r]]) => [u, { points: p, rank: r }]),
     );
     return {
-      standings, h2h: ev.h2h || [],
+      standings, h2h: ev.h2h || [], upsets: ev.upsets || [],
       rounds: ev.rounds || 11, total: ev.total || standings.size,
       live: false,
     };
@@ -215,7 +215,7 @@ async function fromLive(slot, onProgress) {
     // In diretta si legge solo l'ultimo turno, quindi gli scontri diretti
     // non ci sono: arrivano con i dati definitivi. Il punteggio e' provvisorio.
     return {
-      standings: st.standings, h2h: [],
+      standings: st.standings, h2h: [], upsets: [],
       rounds: 11, total: st.total, live: true, id: match.id,
     };
   } catch {

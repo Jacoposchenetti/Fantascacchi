@@ -83,4 +83,14 @@ export const SCORING = {
   duelWin: 3,
   duelLoss: -2,
   duelDraw: 0,
+
+  // Impresa: batti al tavolo un avversario con rating molto piu' alto.
+  // Vale contro chiunque nel torneo, non solo contro chi e' in rosa a
+  // qualcuno. Scatta il primo scaglione dall'alto, per singola partita.
+  upset: [
+    { gap: 300, bonus: 6 },
+    { gap: 200, bonus: 4 },
+    { gap: 100, bonus: 2 },
+  ],
+  upsetCap: 12,          // tetto per giornata: una serata d'oro non vale il triplo
 };

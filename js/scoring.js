@@ -41,6 +41,20 @@ export function scorePlayer(res, rules = SCORING, rounds = 11) {
     breakdown.push({ label: `Sotto ${fmtScore(rules.weakScoreMax)} punti`, pts: rules.weakScore });
   }
 
+  // Imprese: ogni partita vinta contro un avversario molto piu' forte.
+  // res.upsets e' la lista dei divari di rating (es. [180, 260]).
+  const imprese = Array.isArray(res.upsets) ? res.upsets : [];
+  let bonusImprese = 0;
+  for (const gap of imprese) {
+    const t = rules.upset.find((x) => gap >= x.gap);
+    if (t) bonusImprese += t.bonus;
+  }
+  bonusImprese = Math.min(bonusImprese, rules.upsetCap);
+  if (bonusImprese > 0) {
+    const n = imprese.filter((g) => g >= rules.upset[rules.upset.length - 1].gap).length;
+    breakdown.push({ label: `${n} impres${n === 1 ? "a" : "e"} (batte più forti)`, pts: bonusImprese });
+  }
+
   const total = breakdown.reduce((s, b) => s + b.pts, 0);
   return { total: round1(total), absent: false, breakdown };
 }

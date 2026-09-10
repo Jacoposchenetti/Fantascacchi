@@ -183,28 +183,67 @@ vibrazione e titolo lampeggiante** nella scheda. Si spengono col pulsante
 
 ## Come si gioca
 
-### Punteggi
+### Quanto dura una lega
+
+Prima l'asta: mezz'ora se live, quattro-cinque giorni se a buste chiuse.
+
+Poi la stagione, che è lunga **`matchdays` Titled Tuesday** — di default **10**,
+regolabile da 1 a 52 in Impostazioni. I Titled Tuesday sono settimanali, quindi
+10 giornate ≈ **due mesi e mezzo**. Il calendario mostra fin dal primo giorno
+tutte le date fino alla chiusura; quando è finita, la classifica è definitiva.
+
+### Come si calcola il punteggio, esattamente
+
+Ogni giornata, per ogni tuo titolare che ha giocato il torneo:
+
+1. **Base** — punti fatti nel torneo `× 3`. Otto su undici valgono 24.
+2. **Piazzamento** — il primo scaglione che scatta, e **uno solo**:
+   1° `+25` · 2° `+18` · 3° `+14` · top 10 `+8` · top 25 `+4` · top 50 `+2`.
+3. **Soglia di rendimento** — `11/11` vale `+15`; da `9` in su `+5`; sotto `4` è `−3`.
+4. **Imprese** — per **ogni partita** vinta contro un avversario molto più forte:
+   `+2` se il divario di rating è almeno 100, `+4` da 200, `+6` da 300. Scatta un
+   solo scaglione per partita, e il totale imprese di giornata è **tetto a +12**.
+   Vale contro chiunque nel torneo, non solo contro chi è in rosa a qualcuno.
+5. **Scontro diretto** — se incontri al tavolo uno scacchista schierato da un
+   **altro partecipante**: `+3` se lo batti, `−2` se perdi, `0` in caso di patta.
+   Fra due tuoi non conta: è una partita di giro.
+6. **Capitano** — la somma di tutto quanto sopra `× 2`, ma **solo se il capitano
+   ha giocato davvero**. Se è assente ed entra un panchinaro, il ×2 si perde.
+
+**Se un titolare non ha giocato il torneo**, al suo posto entra — con il suo
+punteggio — il primo panchinaro della lista che invece l'ha giocato.
+
+Il totale della giornata è la somma dei cinque titolari effettivi. La classifica
+di stagione è la somma delle giornate già disputate.
 
 | Voce | Punti |
 |---|---|
 | Ogni punto fatto nel torneo | ×3 |
-| Vittoria del torneo | +25 |
-| 2° posto | +18 |
-| 3° posto | +14 |
-| Top 10 | +8 |
-| Top 25 | +4 |
-| Top 50 | +2 |
+| Vittoria del torneo / 2° / 3° | +25 / +18 / +14 |
+| Top 10 / 25 / 50 | +8 / +4 / +2 |
 | En plein (11/11) | +15 |
-| Almeno 9 punti | +5 |
-| Sotto 4 punti | −3 |
+| Almeno 9 punti / sotto 4 | +5 / −3 |
+| **Impresa: batte uno +100 / +200 / +300 di rating** | **+2 / +4 / +6** per partita |
+| Tetto imprese per giornata | +12 |
+| Scontro diretto: vinci / perdi / patta | +3 / −2 / 0 |
 | Capitano | ×2 |
 | Non ha giocato | entra la panchina |
-| **Batte un avversario di lega** | **+3** |
-| **Perde contro un avversario di lega** | **−2** |
-| Patta fra i due | 0 |
 
 I bonus piazzamento **non si sommano**: vale solo il più alto. Il capitano raddoppia solo
 se scende davvero in campo (se viene sostituito, il bonus si perde).
+
+### Impresa (batte i più forti)
+
+Ogni partita vinta contro un avversario con rating molto più alto vale un bonus,
+tanto più grosso quanto più largo il divario: `+2` da 100 punti in su, `+4` da
+200, `+6` da 300. Conta il rating registrato **in quella partita** del torneo.
+Il totale imprese di una giornata è limitato a `+12`, così una serata d'oro
+pesa ma non triplica il punteggio.
+
+A differenza dello scontro diretto, l'impresa vale contro **chiunque** nel
+torneo. I dati stanno in `data/tt/<id>.json` sotto `upsets`, estratti dagli
+stessi 11 turni già scaricati per gli scontri diretti (una quarantina per
+torneo).
 
 ### Scontro diretto
 

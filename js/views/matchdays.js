@@ -167,11 +167,20 @@ function scoreTable(ctx, slot, res) {
  */
 export function resultsMap(ctx, slot, res) {
   const owned = [...new Set(Object.values(ctx.league.roster || {}).map((r) => r.playerId))];
+
+  // Imprese per username: [gap, gap, ...]. Le entry sono [username, gap, turno].
+  const imprese = new Map();
+  for (const [u, gap] of res.upsets || []) {
+    if (!imprese.has(u)) imprese.set(u, []);
+    imprese.get(u).push(gap);
+  }
+
   const out = new Map();
   for (const pid of owned) {
     const s = res.standings.get(pid);
     out.set(pid, s
-      ? { played: true, points: s.points, rank: s.rank, total: res.total }
+      ? { played: true, points: s.points, rank: s.rank, total: res.total,
+          upsets: imprese.get(pid) || [] }
       : { played: false, points: 0, rank: null, total: res.total });
   }
   return out;

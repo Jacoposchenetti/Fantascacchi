@@ -50,40 +50,56 @@ def ids_listone():
         return set()
 
 
-def head_to_head(tid, rounds, pool):
-    """
-    Partite fra due giocatori del listone, turno per turno.
+# Sotto questo divario di rating, la vittoria non e' una sorpresa.
+UPSET_MIN = 100
 
-    Sono la base del bonus scontro diretto. Costa scaricare tutti i turni
-    invece del solo ultimo, ma sono una manciata di megabyte a settimana in
-    CI, e quello che resta nel file sono un paio di kilobyte: su ~1900
-    partite, quelle fra due giocatori del listone sono meno di un centinaio.
+
+def scan_rounds(tid, rounds, pool):
+    """
+    Una sola passata su tutti gli 11 turni, per due cose:
+
+    - h2h: partite fra DUE giocatori del listone. Base del bonus scontro
+      diretto (manager contro manager).
+    - upsets: vittorie di un giocatore del listone contro un avversario
+      con rating molto piu' alto. Base del bonus impresa, che vale contro
+      chiunque, non solo contro chi e' in rosa a qualcuno.
+
+    Scaricare tutti i turni invece del solo ultimo costa qualche megabyte
+    a settimana in CI; nel file restano pochi kilobyte.
     """
     if not pool:
-        return []
-    out = []
+        return [], []
+    h2h, upsets = [], []
     for rnd in range(1, rounds + 1):
         grp = get(f"{API}/tournament/{tid}/{rnd}/1")
         time.sleep(0.15)
         if not grp:
             continue
         for g in grp.get("games", []):
-            w = (g.get("white") or {}).get("username", "").lower()
-            b = (g.get("black") or {}).get("username", "").lower()
-            if w not in pool or b not in pool:
-                continue
-            wr = (g.get("white") or {}).get("result", "")
-            br = (g.get("black") or {}).get("result", "")
+            white = g.get("white") or {}
+            black = g.get("black") or {}
+            w = (white.get("username") or "").lower()
+            b = (black.get("username") or "").lower()
+            wr, br = white.get("result", ""), black.get("result", "")
+
             if wr == "win":
-                res = "w"
+                res, vinc, perd = "w", (w, white), (b, black)
             elif br == "win":
-                res = "b"
+                res, vinc, perd = "b", (b, black), (w, white)
             elif wr in PATTE or br in PATTE:
-                res = "d"
+                res, vinc, perd = "d", None, None
             else:
                 continue          # partita annullata o esito non interpretabile
-            out.append([w, b, res, rnd])
-    return out
+
+            if w in pool and b in pool:
+                h2h.append([w, b, res, rnd])
+
+            # Impresa: un giocatore del listone batte uno molto piu' forte.
+            if vinc and vinc[0] in pool:
+                gap = (perd[1].get("rating") or 0) - (vinc[1].get("rating") or 0)
+                if gap >= UPSET_MIN:
+                    upsets.append([vinc[0], int(gap), rnd])
+    return h2h, upsets
 
 
 def tournament_meta(tid):
@@ -120,12 +136,13 @@ def build_event(tid, date, pool):
         # Coppia invece di oggetto: su 260 giocatori sono kilobyte risparmiati.
         standings[p["username"]] = [p["points"], rank]
 
-    duelli = head_to_head(tid, meta["rounds"], pool)
+    duelli, imprese = scan_rounds(tid, meta["rounds"], pool)
 
     return {
         "id": tid,
         "date": date,
         "h2h": duelli,
+        "upsets": imprese,
         "name": meta["name"],
         "start": meta["start"],
         "finish": meta["finish"],
@@ -171,7 +188,7 @@ def main():
                         encoding="utf-8")
         nuovi += 1
         print(f"      + {date}  {ev['played']} giocatori, "
-              f"{len(ev['h2h'])} scontri diretti  "
+              f"{len(ev['h2h'])} scontri diretti, {len(ev['upsets'])} imprese  "
               f"({dest.stat().st_size // 1024} KB)", flush=True)
         time.sleep(0.2)
 

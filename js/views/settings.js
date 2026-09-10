@@ -58,13 +58,18 @@ export default function settingsView(ctx) {
           kv("Batte un avversario di lega", fmtPts(SCORING.duelWin)),
           kv("Perde contro un avversario di lega", fmtPts(SCORING.duelLoss)),
           kv("Patta fra i due", fmtPts(SCORING.duelDraw)),
+          ...SCORING.upset.map((t) =>
+            kv(`Batte uno +${t.gap} di rating`, fmtPts(t.bonus))),
+          kv("Tetto imprese per giornata", fmtPts(SCORING.upsetCap)),
         ),
         el("p.small.mute-2", { style: "margin:.8rem 0 0" },
           "I bonus piazzamento non si sommano: vale solo il più alto. ",
           "Il capitano raddoppia solo se gioca davvero. ",
           "Lo scontro diretto scatta quando due scacchisti schierati da "
           + "partecipanti diversi si incontrano al tavolo: se sono entrambi tuoi "
-          + "non conta niente."),
+          + "non conta niente. L'impresa scatta contro chiunque nel torneo: "
+          + "ogni partita vinta contro un avversario molto più forte vale il "
+          + "primo scaglione che scatta, fino al tetto di giornata."),
       ),
     ),
 
