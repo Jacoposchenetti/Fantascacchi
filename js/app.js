@@ -230,17 +230,33 @@ function restoreFocus(snap) {
 function renderChrome() {
   const bar = $("#topbar");
   const inLeague = state.route.name === "league" && state.league;
-  bar.hidden = !isAuthed() || (!inLeague && state.route.name !== "join");
+  // La barra c'e' sempre da loggati: dentro una lega con le sue schede,
+  // altrove solo col nome, che apre il profilo. Cosi' si vede sempre con
+  // che account si e' entrati e da dove uscire.
+  bar.hidden = !isAuthed();
 
   const tabsBox = $("#tabs");
   const invite = $("#btn-invite");
+  const me = $("#me");
+
+  const apriProfilo = (legaCorrente) => () => {
+    import("./views/profile.js").then((m) =>
+      m.showProfile(buildCtxLite(), { legaCorrente }));
+  };
 
   if (!inLeague) {
     render(tabsBox);
     invite.hidden = true;
-    $("#me").textContent = "";
+    // Fuori da una lega il chip serve solo se c'e' un account dietro:
+    // in modalita' locale senza nome non mostra nulla di utile.
+    const mostraChip = state.store.needsAuth || Boolean(state.store.me?.name);
+    me.hidden = !mostraChip;
+    me.textContent = state.store.me?.name || "Profilo";
+    me.title = "Profilo e le tue leghe";
+    me.onclick = apriProfilo(null);
     return;
   }
+  me.hidden = false;
 
   render(tabsBox, TABS.map((t) => el("button.tab", {
     type: "button",
@@ -252,13 +268,9 @@ function renderChrome() {
   invite.onclick = () => {
     import("./views/invite.js").then((m) => m.showInvite(state.league));
   };
-  const me = $("#me");
   me.textContent = state.store.me.name || "";
   me.title = "Profilo e altre leghe";
-  me.onclick = () => {
-    import("./views/profile.js").then((m) =>
-      m.showProfile(buildCtxLite(), { legaCorrente: state.league.id }));
-  };
+  me.onclick = apriProfilo(state.league.id);
 }
 
 function renderApp() {

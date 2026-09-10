@@ -33,7 +33,7 @@ export async function firebaseAdapter() {
   } = authMod;
   const {
     getFirestore, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-    onSnapshot, runTransaction, query, where, limit,
+    onSnapshot, runTransaction, query, limit,
   } = fsMod;
 
   const app = initializeApp(FIREBASE_CONFIG);
@@ -288,31 +288,38 @@ export async function firebaseAdapter() {
      * tiene aggiornata a ogni scrittura.
      */
     async listMyLeagues() {
-      const q = query(
-        collection(db, "leagues"),
-        where("memberUids", "array-contains", me.uid),
-        limit(50),
-      );
-      const snap = await getDocs(q);
-      return snap.docs
-        .map((d) => riassunto(d.data(), me.uid))
-        .sort((a, b) => b.createdAt - a.createdAt);
+      // Si scorre l'elenco e si filtra lato client su `members`. Sembra
+      // grezzo, ma e' l'unica cosa che funziona SEMPRE: le leghe create
+      // prima che esistesse memberUids non hanno quel campo, quindi una
+      // query su di esso le salterebbe. Alla scala di una app fra amici
+      // (poche decine di leghe) leggere tutto e' istantaneo.
+      const snap = await getDocs(query(collection(db, "leagues"), limit(400)));
+      const mie = [];
+      const daSanare = [];
+      snap.docs.forEach((d) => {
+        const lg = d.data();
+        if (!lg.members?.[me.uid]) return;
+        mie.push(riassunto(lg, me.uid));
+        const chiavi = Object.keys(lg.members || {});
+        const uids = lg.memberUids || [];
+        if (chiavi.some((k) => !uids.includes(k)) || uids.length !== chiavi.length) {
+          daSanare.push(lg.id);
+        }
+      });
+      // Ripara memberUids in sottofondo, cosi' la volta dopo la query
+      // diretta funziona e questa scansione resta un ripiego.
+      for (const id of daSanare) {
+        this.updateLeague(id, (lg) => lg).catch(() => {});
+      }
+      return mie.sort((a, b) => b.createdAt - a.createdAt);
     },
 
     /** Leghe con ingresso pubblico ancora in sala d'attesa. */
     async listOpenLeagues() {
-      // Un solo filtro di uguaglianza: Firestore lo indicizza da solo.
-      // "in sala d'attesa" e l'ordine si fanno lato client, per non dover
-      // creare un indice composito a mano.
-      const q = query(
-        collection(db, "leagues"),
-        where("open", "==", true),
-        limit(60),
-      );
-      const snap = await getDocs(q);
+      const snap = await getDocs(query(collection(db, "leagues"), limit(400)));
       return snap.docs
         .map((d) => d.data())
-        .filter((lg) => lg.phase === "lobby" && !lg.members?.[me.uid])
+        .filter((lg) => lg.open && lg.phase === "lobby" && !lg.members?.[me.uid])
         .map((lg) => riassunto(lg, me.uid))
         .filter((l) => l.partecipanti > 0)
         .sort((a, b) => b.createdAt - a.createdAt)
