@@ -422,7 +422,7 @@ invece di 40: compresso dal server sono una trentina.
 ### Rigenerarlo a mano
 
 ```bash
-python tools/build_listone.py --events 26 --top 90
+python tools/build_listone.py --events 26 --top 150
 ```
 
 26 tornei sono circa sei mesi di Titled Tuesday. `--min-events 3` scarta chi ha

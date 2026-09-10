@@ -5,7 +5,7 @@ con prezzi derivati da dati REALI di chess.com (rating blitz + rendimento
 nei Titled Tuesday recenti).
 
 Uso:
-    python tools/build_listone.py [--events 26] [--top 90] [--min-events 3]
+    python tools/build_listone.py [--events 26] [--top 150] [--min-events 3]
 
 Perche' esiste: gli ID dei Titled Tuesday hanno un suffisso numerico opaco
 (es. ...-august-25-2026-31064127), quindi non sono costruibili da una data.
@@ -121,7 +121,7 @@ def main():
     ap.add_argument("--min-events", type=int, default=3,
                     help="presenze minime per finire nel listone: sotto, "
                          "la media e' troppo rumorosa per fidarsi")
-    ap.add_argument("--top", type=int, default=90,
+    ap.add_argument("--top", type=int, default=150,
                     help="quanti giocatori tenere nel listone")
     ap.add_argument("--budget", type=int, default=500)
     args = ap.parse_args()

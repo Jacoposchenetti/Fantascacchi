@@ -571,10 +571,10 @@ function playerPicker(ctx) {
 
     list.length === 0
       ? empty("🔍", "Nessun giocatore trovato")
-      : el("div.plist", list.slice(0, 120).map((p) => playerRow(ctx, p, myTurn))),
+      : el("div.plist", list.slice(0, 200).map((p) => playerRow(ctx, p, myTurn))),
 
-    list.length > 120 && el("p.center.small.mute-2",
-      `…e altri ${list.length - 120}. Affina la ricerca.`),
+    list.length > 200 && el("p.center.small.mute-2",
+      `…e altri ${list.length - 200}. Affina la ricerca.`),
   );
 }
 

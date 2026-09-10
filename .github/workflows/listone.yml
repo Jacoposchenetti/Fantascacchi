@@ -44,7 +44,7 @@ jobs:
         run: python tools/build_results.py --events 12
 
       - name: Rigenera il listone
-        run: python tools/build_listone.py --events 26 --top 90
+        run: python tools/build_listone.py --events 26 --top 150
 
       - name: Committa solo se e' cambiato qualcosa
         run: |

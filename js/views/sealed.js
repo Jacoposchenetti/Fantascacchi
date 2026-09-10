@@ -293,7 +293,7 @@ function listone(ctx) {
 
     list.length === 0
       ? empty("🔍", "Nessun giocatore")
-      : el("div.plist", list.slice(0, 100).map((p) => {
+      : el("div.plist", list.slice(0, 200).map((p) => {
           const mia = mie[p.id]?.amount || 0;
           return el("div.pcard.pcard-split",
             el("button.pcard-main", { type: "button", onclick: () => showPlayer(ctx, p) },
