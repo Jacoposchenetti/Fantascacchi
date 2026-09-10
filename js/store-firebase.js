@@ -15,7 +15,7 @@
    --------------------------------------------------------------- */
 
 import { FIREBASE_CONFIG, AUTH } from "./config.js";
-import { newLeague } from "./store.js";
+import { newLeague, normalizzaMembri, riassunto } from "./store.js";
 
 const V = "10.12.2";
 const LS_NAME = "fsc:name";
@@ -33,7 +33,7 @@ export async function firebaseAdapter() {
   } = authMod;
   const {
     getFirestore, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-    onSnapshot, runTransaction,
+    onSnapshot, runTransaction, query, where, limit,
   } = fsMod;
 
   const app = initializeApp(FIREBASE_CONFIG);
@@ -176,6 +176,7 @@ export async function firebaseAdapter() {
         if (!snap.exists()) throw new Error("Lega non trovata");
         const next = mutator(snap.data());
         if (!next) return snap.data();
+        normalizzaMembri(next);
         tx.set(leagueRef(id), next);
         return next;
       });
@@ -273,6 +274,7 @@ export async function firebaseAdapter() {
 
     async importLeague(dump) {
       if (!dump?.league?.id) throw new Error("File non valido");
+      normalizzaMembri(dump.league);
       await setDoc(leagueRef(dump.league.id), dump.league);
       for (const md of Object.values(dump.matchdays || {})) {
         await setDoc(mdRef(dump.league.id, md.id), md);
@@ -280,6 +282,41 @@ export async function firebaseAdapter() {
       return dump.league.id;
     },
 
-    listLocalLeagues() { return []; },
+    /**
+     * Le leghe dove sono membro. Firestore non cerca dentro gli oggetti,
+     * quindi si interroga memberUids, la copia piatta che updateLeague
+     * tiene aggiornata a ogni scrittura.
+     */
+    async listMyLeagues() {
+      const q = query(
+        collection(db, "leagues"),
+        where("memberUids", "array-contains", me.uid),
+        limit(50),
+      );
+      const snap = await getDocs(q);
+      return snap.docs
+        .map((d) => riassunto(d.data(), me.uid))
+        .sort((a, b) => b.createdAt - a.createdAt);
+    },
+
+    /** Leghe con ingresso pubblico ancora in sala d'attesa. */
+    async listOpenLeagues() {
+      // Un solo filtro di uguaglianza: Firestore lo indicizza da solo.
+      // "in sala d'attesa" e l'ordine si fanno lato client, per non dover
+      // creare un indice composito a mano.
+      const q = query(
+        collection(db, "leagues"),
+        where("open", "==", true),
+        limit(60),
+      );
+      const snap = await getDocs(q);
+      return snap.docs
+        .map((d) => d.data())
+        .filter((lg) => lg.phase === "lobby" && !lg.members?.[me.uid])
+        .map((lg) => riassunto(lg, me.uid))
+        .filter((l) => l.partecipanti > 0)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 30);
+    },
   };
 }

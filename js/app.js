@@ -252,8 +252,13 @@ function renderChrome() {
   invite.onclick = () => {
     import("./views/invite.js").then((m) => m.showInvite(state.league));
   };
-  $("#me").textContent = state.store.me.name || "";
-  $("#me").title = state.store.me.name || "";
+  const me = $("#me");
+  me.textContent = state.store.me.name || "";
+  me.title = "Profilo e altre leghe";
+  me.onclick = () => {
+    import("./views/profile.js").then((m) =>
+      m.showProfile(buildCtxLite(), { legaCorrente: state.league.id }));
+  };
 }
 
 function renderApp() {

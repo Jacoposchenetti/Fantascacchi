@@ -23,7 +23,7 @@ const LS_BIDS = (id) => `fsc:bids:${id}`;
 
 /** Scheletro di una lega nuova. */
 export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
-                            bidSeconds, turnSeconds, auctionMode, sealedHours }) {
+                            bidSeconds, turnSeconds, auctionMode, sealedHours, open }) {
   const id = shortId(6);
   return {
     id,
@@ -39,6 +39,10 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
     // altrimenti il primo che apre il link puo' comprare a 1 credito da solo.
     phase: "lobby",
     members: { [uid]: { uid, name: userName, joinedAt: Date.now(), isAdmin: true } },
+    // Copia piatta delle chiavi di `members`. Serve perche' Firestore non sa
+    // cercare dentro un oggetto: senza, non c'e' modo di chiedere "quali
+    // leghe hanno me fra i membri". La tiene aggiornata updateLeague.
+    memberUids: [uid],
     roster: {},
     auction: {
       status: "idle", playerId: null, bid: 0, bidderUid: null,
@@ -48,12 +52,25 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
     // "live" = asta a chiamata col cronometro, tutti collegati insieme.
     // "sealed" = buste chiuse, offerte segrete entro una scadenza.
     auctionMode: auctionMode || "live",
+    // Ingresso pubblico: la lega compare fra le "leghe aperte" e chiunque
+    // puo' entrarci senza link. Vale solo finche' e' in sala d'attesa.
+    open: Boolean(open),
     sealed: { giro: 1, scadenza: 0, ultimoRisultato: [], risoltoIl: 0 },
     sealedHours: sealedHours ?? DEFAULTS.sealedHours,
     // La stagione parte quando si chiude l'asta: da li' in poi le giornate
     // si generano da sole dai Titled Tuesday che arrivano.
     season: { startsAt: 0, matchdays: DEFAULTS.matchdays },
   };
+}
+
+/**
+ * Riallinea memberUids a members. Va fatto a ogni scrittura, non nei singoli
+ * punti che toccano i membri: e' l'unico modo perche' non si disallinei mai.
+ */
+export function normalizzaMembri(lg) {
+  if (!lg) return lg;
+  lg.memberUids = Object.keys(lg.members || {});
+  return lg;
 }
 
 /* ----------------------------- identita' ------------------------------ */
@@ -150,6 +167,7 @@ function localAdapter() {
       if (!cur) throw new Error("Lega non trovata");
       const next = mutator(structuredClone(cur));
       if (!next) return cur;
+      normalizzaMembri(next);
       writeJSON(key, next);
       broadcast(key);
       return next;
@@ -228,23 +246,51 @@ function localAdapter() {
 
     async importLeague(dump) {
       if (!dump?.league?.id) throw new Error("File non valido");
+      normalizzaMembri(dump.league);
       writeJSON(LS_LEAGUE(dump.league.id), dump.league);
       writeJSON(LS_MDS(dump.league.id), dump.matchdays || {});
       broadcast(LS_LEAGUE(dump.league.id));
       return dump.league.id;
     },
 
-    listLocalLeagues() {
-      const out = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith("fsc:league:")) {
-          const lg = readJSON(k, null);
-          if (lg) out.push({ id: lg.id, name: lg.name, createdAt: lg.createdAt });
-        }
-      }
-      return out.sort((a, b) => b.createdAt - a.createdAt);
+    /** Le leghe di cui faccio parte, con giusto quello che serve a elencarle. */
+    async listMyLeagues() {
+      return scanLeghe((lg) => lg?.members?.[me.uid], me.uid);
     },
+
+    /** Leghe con ingresso pubblico ancora in sala d'attesa. */
+    async listOpenLeagues() {
+      return scanLeghe(
+        (lg) => lg?.open && lg.phase === "lobby" && !lg.members?.[me.uid], me.uid);
+    },
+  };
+
+  function scanLeghe(pred, uid) {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith("fsc:league:")) continue;
+      const lg = readJSON(k, null);
+      if (lg && pred(lg)) out.push(riassunto(lg, uid));
+    }
+    return out.sort((a, b) => b.createdAt - a.createdAt);
+  }
+}
+
+/** Riga di elenco per una lega: quel poco che serve a sceglierla. */
+export function riassunto(lg, uid) {
+  const rosa = Object.values(lg.roster || {}).filter((r) => r.ownerUid === uid).length;
+  return {
+    id: lg.id,
+    name: lg.name,
+    createdAt: lg.createdAt || 0,
+    phase: lg.phase || "lobby",
+    auctionMode: lg.auctionMode || "live",
+    partecipanti: Object.keys(lg.members || {}).length,
+    rosterSize: lg.rosterSize || 0,
+    miei: rosa,
+    isAdmin: lg.adminUid === uid,
+    open: Boolean(lg.open),
   };
 }
 

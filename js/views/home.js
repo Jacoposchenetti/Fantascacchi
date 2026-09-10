@@ -1,9 +1,10 @@
-import { el, toast, spinner } from "../ui.js";
+import { el, toast } from "../ui.js";
 import { DEFAULTS } from "../config.js";
+import myLeaguesSection from "./myleagues.js";
+import openLeaguesSection from "./openleagues.js";
 
 export default function homeView(ctx) {
-  const { store, go } = ctx;
-  const locals = store.listLocalLeagues?.() || [];
+  const { store } = ctx;
 
   return el("div.stack", { style: "gap:2rem" },
     el("section.hero",
@@ -24,20 +25,8 @@ export default function homeView(ctx) {
       el("code", "README.md"), " (circa 5 minuti, piano gratuito).",
     ),
 
-    locals.length > 0 && el("section",
-      el("div.section-head", el("h2", "Le tue leghe")),
-      el("div.plist", locals.map((l) => el("button.pcard", {
-        onclick: () => go(`#/l/${l.id}/asta`),
-      },
-        el("div", { style: "font-size:1.4rem" }, "♜"),
-        el("div.pmain",
-          el("div.pname", el("span", l.name)),
-          el("div.pmeta", el("span.mono", l.id),
-            el("span", new Date(l.createdAt).toLocaleDateString("it-IT"))),
-        ),
-        el("div.pright.muted", "›"),
-      ))),
-    ),
+    myLeaguesSection(ctx),
+    openLeaguesSection(ctx),
 
     el("section",
       el("div.section-head", el("h2", "Come funziona")),
@@ -96,6 +85,11 @@ function openCreate(ctx) {
           "L'asta live è una serata da passare insieme. Le buste chiuse non "
           + "richiedono che siate collegati nello stesso momento: si manda "
           + "un'offerta segreta per ogni giocatore e alla scadenza si assegna tutto."),
+
+        e("label.row", { style: "gap:.5rem;font-size:.9rem" },
+          e("input", { type: "checkbox", name: "open", style: "width:auto" }),
+          "Ingresso pubblico — la lega compare fra le «leghe aperte» e "
+          + "chiunque può unirsi senza il link"),
         e("div.row", { style: "justify-content:flex-end" },
           e("button.btn.btn-ghost", { type: "button", onclick: close }, "Annulla"),
           e("button.btn.btn-primary", { type: "submit" }, "Crea"),
@@ -122,6 +116,7 @@ function openCreate(ctx) {
             rosterSize: roster,
             lineupSize: lineup,
             auctionMode: String(f.get("modo") || "live"),
+            open: f.get("open") === "on",
           });
           close();
           ctx.go(`#/l/${id}/asta`);

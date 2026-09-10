@@ -1,8 +1,12 @@
 import { el, render, toast, spinner } from "../ui.js";
+import openLeaguesSection from "./openleagues.js";
 
 /**
  * Ingresso in una lega tramite link o codice.
  * La vista si popola da sola: prima cerca la lega, poi chiede il nome.
+ *
+ * Se l'asta e' gia' partita non si entra: si spiega il perche' e si
+ * propone di cercarne un'altra o crearne una.
  */
 export default function joinView(ctx, leagueId) {
   const root = el("div.stack");
@@ -14,12 +18,12 @@ export default function joinView(ctx, leagueId) {
     try {
       league = await ctx.store.getLeague(leagueId);
     } catch (err) {
-      render(root, errorCard("Non riesco a leggere la lega", err.message));
+      render(root, errorCard(ctx, "Non riesco a leggere la lega", err.message));
       return;
     }
 
     if (!league) {
-      render(root, errorCard(
+      render(root, errorCard(ctx,
         "Lega non trovata",
         ctx.store.mode === "local"
           ? "Sei in modalità locale: le leghe create su un altro dispositivo non sono visibili qui. "
@@ -35,19 +39,21 @@ export default function joinView(ctx, leagueId) {
       return;
     }
 
-    // In lobby si entra senza problemi; il guaio e' arrivare a stagione iniziata.
-    const full = league.phase === "season";
+    // Si entra solo finche' e' in sala d'attesa. Dopo, entrare significa
+    // ritrovarsi senza rosa: meglio dirlo e proporre alternative.
+    if (league.phase !== "lobby") {
+      render(root, giaIniziata(ctx, league));
+      return;
+    }
+
     const nMembers = Object.keys(league.members || {}).length;
+    const modo = league.auctionMode === "sealed" ? "a buste chiuse" : "live";
 
     const form = el("form.stack", { onsubmit: submit },
       el("h1", league.name),
       el("p.muted", { style: "margin:0" },
         `${nMembers} ${nMembers === 1 ? "partecipante" : "partecipanti"} · `,
-        `${league.budget} crediti · rosa da ${league.rosterSize} · ${league.lineupSize} titolari`),
-
-      full && el("div.notice.warn",
-        "L'asta di questa lega è già chiusa: entrando partiresti senza rosa. ",
-        "Meglio chiedere a chi l'ha creata di riaprirla."),
+        `asta ${modo} · ${league.budget} crediti · rosa da ${league.rosterSize}`),
 
       el("label.field", "Il tuo nome",
         el("input", {
@@ -74,6 +80,7 @@ export default function joinView(ctx, leagueId) {
         await ctx.store.setName(name);
         await ctx.store.updateLeague(leagueId, (lg) => {
           if (lg.members?.[ctx.me.uid]) return null;         // gia' entrato altrove
+          if (lg.phase !== "lobby") throw new Error("L'asta è già partita: non si entra più.");
           const taken = Object.values(lg.members || {})
             .some((m) => m.name.toLowerCase() === name.toLowerCase());
           if (taken) throw new Error(`Nella lega c'è già un "${name}". Scegline un altro.`);
@@ -96,10 +103,36 @@ export default function joinView(ctx, leagueId) {
   return root;
 }
 
-function errorCard(title, text) {
-  return el("div.card.stack",
-    el("h2", title),
-    el("p.muted", { style: "margin:0" }, text),
-    el("a.btn.btn-primary", { href: "#/" }, "Torna alla home"),
+/* ------------------------- l'asta e' gia' partita --------------------- */
+
+function giaIniziata(ctx, league) {
+  const admin = league.members?.[league.adminUid]?.name || "chi l'ha creata";
+  const fase = league.phase === "season" ? "La stagione è già cominciata"
+    : "L'asta è già partita";
+
+  return el("div.stack", { style: "gap:1.6rem" },
+    el("div.card.stack",
+      el("span.badge.badge-red", { style: "margin:0 auto 0 0" }, "Troppo tardi"),
+      el("h1", { style: "margin:.4rem 0 0" }, league.name),
+      el("p.muted", { style: "margin:0" },
+        `${fase}, quindi entrando ora ti ritroveresti senza rosa. `,
+        `Se pensi sia un errore, scrivi a ${admin}: può riportare la lega in sala d'attesa `,
+        "da Impostazioni."),
+      el("div.row",
+        el("a.btn.btn-primary", { href: "#/" }, "Torna alla home"),
+      ),
+    ),
+    openLeaguesSection(ctx, { titolo: "Nel frattempo, leghe aperte a cui unirti" }),
+  );
+}
+
+function errorCard(ctx, title, text) {
+  return el("div.stack", { style: "gap:1.6rem" },
+    el("div.card.stack",
+      el("h2", title),
+      el("p.muted", { style: "margin:0" }, text),
+      el("a.btn.btn-primary", { href: "#/" }, "Torna alla home"),
+    ),
+    openLeaguesSection(ctx, { titolo: "Leghe aperte" }),
   );
 }
