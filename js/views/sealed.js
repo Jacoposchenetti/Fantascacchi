@@ -15,7 +15,7 @@ import {
 } from "../league.js";
 import {
   risolvi, applica, maxOfferta, impegnato, daCompletare, mancaAlla,
-  DEFAULT_ORE, DEFAULT_SALTI,
+  regoleBusteChiuse, DEFAULT_ORE, DEFAULT_SALTI,
 } from "../sealed.js";
 import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
@@ -44,6 +44,7 @@ export default function sealedView(ctx) {
 
   return el("div.stack", { style: "gap:1.4rem" },
     testata(ctx, s, scaduta),
+    regolamento(ctx),
     s.ultimoRisultato?.length > 0 && risultatoScorso(ctx, s),
     leMieOfferte(ctx),
     pannelloPartecipanti(ctx),
@@ -112,6 +113,20 @@ function testata(ctx, s, scaduta) {
       style: "justify-self:center",
       onclick: () => chiudiSubito(ctx),
     }, "Chiudi il giro adesso"),
+  );
+}
+
+/* ------------------------------- regolamento -------------------------- */
+
+let regoleAperte = false;
+
+function regolamento(ctx) {
+  const punti = regoleBusteChiuse(ctx.league);
+  return el("details.card.card-tight", { open: regoleAperte,
+    ontoggle: (e) => { regoleAperte = e.target.open; } },
+    el("summary", { style: "cursor:pointer;font-weight:600" }, "Come funziona l'asta a buste chiuse"),
+    el("ul", { style: "margin:.6rem 0 0;padding-left:1.1rem" },
+      punti.map((r) => el("li", { style: "margin:.25rem 0;font-size:.9rem" }, r))),
   );
 }
 

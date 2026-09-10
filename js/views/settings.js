@@ -34,6 +34,7 @@ function promptDialog(title, text) {
   });
 }
 import { SCORING } from "../config.js";
+import { ORE_GIRO, DEFAULT_ORE } from "../sealed.js";
 import { members, memberName, ownedCount, inviteLink } from "../league.js";
 import { fetchProfile } from "../chesscom.js";
 import { showInvite } from "./invite.js";
@@ -207,6 +208,7 @@ function leagueForm(ctx, auctionStarted) {
         lg.bidSeconds = Number(f.get("secs"));
         lg.turnSeconds = Number(f.get("turnsecs"));
         lg.season = { ...(lg.season || {}), matchdays: Number(f.get("giornate")) };
+        lg.sealedHours = Number(f.get("sealedhours")) || DEFAULT_ORE;
         return lg;
       });
       toast("Impostazioni salvate", "ok");
@@ -228,9 +230,17 @@ function leagueForm(ctx, auctionStarted) {
         el("input", { type: "number", name: "turnsecs", value: league.turnSeconds || 60, min: 10, max: 300 }))),
     ),
 
-    el("label.field", "Durata della stagione, in giornate",
-      el("input", { type: "number", name: "giornate",
-        value: league.season?.matchdays || 10, min: 1, max: 52 })),
+    el("div.row",
+      el("div", { style: "flex:1;min-width:150px" },
+        el("label.field", "Durata della stagione, in giornate",
+          el("input", { type: "number", name: "giornate",
+            value: league.season?.matchdays || 10, min: 1, max: 52 }))),
+      el("div", { style: "flex:1;min-width:150px" },
+        el("label.field", "Buste chiuse: durata di ogni giro",
+          el("select", { name: "sealedhours" },
+            ORE_GIRO.map((h) => el("option", {
+              value: String(h), selected: h === (league.sealedHours || DEFAULT_ORE),
+            }, `${h} ${h === 1 ? "ora" : "ore"}`)))))),
 
     el("p.small.mute-2", { style: "margin:0" },
       "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta. "

@@ -1,5 +1,6 @@
 import { el, render, toast, spinner } from "../ui.js";
 import openLeaguesSection from "./openleagues.js";
+import { regoleBusteChiuse } from "../sealed.js";
 
 /**
  * Ingresso in una lega tramite link o codice.
@@ -54,6 +55,11 @@ export default function joinView(ctx, leagueId) {
       el("p.muted", { style: "margin:0" },
         `${nMembers} ${nMembers === 1 ? "partecipante" : "partecipanti"} · `,
         `asta ${modo} · ${league.budget} crediti · rosa da ${league.rosterSize}`),
+
+      league.auctionMode === "sealed" && el("div.notice",
+        el("strong", "Asta a buste chiuse — cosa ti aspetta"),
+        el("ul", { style: "margin:.4rem 0 0;padding-left:1.1rem" },
+          regoleBusteChiuse(league).map((r) => el("li", { style: "margin:.2rem 0" }, r)))),
 
       el("label.field", "Il tuo nome",
         el("input", {

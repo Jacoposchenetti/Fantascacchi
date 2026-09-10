@@ -33,7 +33,7 @@ Si sceglie creando la lega, e cambia tutto:
 |---|---|---|
 | Quando | tutti insieme, una serata | ognuno quando può |
 | Meccanica | chiamata e rilancio col cronometro | offerta segreta per giocatore |
-| Durata | una mezz'ora | giri da 24 ore (regolabili) |
+| Durata | una mezz'ora | giri da 1, 3, 6 o 12 ore (default 12) |
 | Serve che | siate tutti collegati | nessuno sia collegato |
 
 Nelle **buste chiuse** si manda un'offerta segreta per ogni giocatore che si
@@ -64,6 +64,11 @@ Durante il giro si vede **chi ha già offerto e chi no** (solo il fatto, mai
 gli importi), e chi rischia il riempimento d'ufficio viene segnalato, così lo
 si può sollecitare prima che sia tardi.
 
+Tutte queste regole sono scritte in chiaro in tre punti: nella sala d'attesa,
+nella schermata di ingresso quando si apre un link, e in un riquadro apribile
+sopra le offerte durante l'asta. Il testo viene da un unico posto
+(`regoleBusteChiuse` in `js/sealed.js`), così è identico ovunque.
+
 ### Quanto dura
 
 Dipende da su quanti giocatori puntate a ogni giro, non dal formato. Con rose
@@ -76,10 +81,10 @@ da 8 e 500 crediti, simulando la risoluzione vera:
 | **5** | **4 giri** | **5 giri** |
 | 8+ | 3–4 giri | 4 giri |
 
-Con giri da 24 ore fanno **4-5 giorni**. Puntare su un giocatore solo per
-giro è il modo peggiore: se lo perdi, quel giro non ti è costato crediti ma
-ti è costato un giorno. Se volete chiudere in fretta, la leva è la durata del
-giro: da 6 ore si finisce in una serata.
+La durata del giro si sceglie creando la lega — **1, 3, 6 o 12 ore** — e si
+cambia in Impostazioni. Con giri da 12 ore un'asta da 5 giri dura due giorni e
+mezzo; da 3 ore si chiude in una serata. Puntare su un giocatore solo per giro
+è il modo peggiore: se lo perdi, quel giro non ti è costato crediti ma tempo.
 
 **Le offerte sono segrete davvero**, non solo nascoste nell'interfaccia: le
 regole Firestore impediscono di leggere quelle altrui finché la scadenza non

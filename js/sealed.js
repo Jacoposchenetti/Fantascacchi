@@ -27,8 +27,34 @@
 
 import { members, budgetLeft, ownedCount } from "./league.js";
 
-export const DEFAULT_ORE = 24;
+export const DEFAULT_ORE = 12;
 export const DEFAULT_SALTI = 2;
+
+/** Le durate proposte per un giro, in ore. */
+export const ORE_GIRO = [1, 3, 6, 12];
+
+/**
+ * Il regolamento delle buste chiuse in parole, un punto per riga.
+ * Unico posto da cui lobby, schermata d'asta e ingresso lo prendono, cosi'
+ * i giocatori vedono sempre le stesse regole, ovunque.
+ */
+export function regoleBusteChiuse(league) {
+  const ore = league?.sealedHours || DEFAULT_ORE;
+  const salti = league?.sealedSkipLimit ?? DEFAULT_SALTI;
+  return [
+    "Nessuno deve essere collegato insieme agli altri.",
+    `Ogni giro dura ${ore} ${ore === 1 ? "ora" : "ore"}: mandi un'offerta segreta `
+      + "per ogni giocatore che vuoi, nessuno vede le tue prima della scadenza.",
+    "Alla scadenza si assegna tutto insieme: vince chi ha offerto di più e paga "
+      + "esattamente quanto ha offerto. A parità vince chi ha più crediti, poi "
+      + "chi ha offerto prima.",
+    "Se le rose non sono piene, parte da solo un altro giro. Si va avanti così "
+      + "finché tutti hanno la rosa completa.",
+    `Attenzione: chi salta ${salti} giri di fila si vede riempire la rosa `
+      + "d'ufficio con i giocatori liberi più economici, a 1 credito l'uno. "
+      + "Serve a non bloccare l'asta all'infinito.",
+  ];
+}
 
 /** Chi deve ancora completare la rosa. */
 export function daCompletare(league) {

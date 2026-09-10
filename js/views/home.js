@@ -1,5 +1,6 @@
 import { el, toast } from "../ui.js";
 import { DEFAULTS } from "../config.js";
+import { ORE_GIRO } from "../sealed.js";
 import myLeaguesSection from "./myleagues.js";
 import openLeaguesSection from "./openleagues.js";
 
@@ -81,10 +82,17 @@ function openCreate(ctx) {
             e("option", { value: "live" }, "Live — tutti insieme, col cronometro"),
             e("option", { value: "sealed" }, "Buste chiuse — offerte segrete, ognuno quando può"),
           )),
+        e("label.field", "Se a buste chiuse: durata di ogni giro",
+          e("select", { name: "sealedhours" },
+            ORE_GIRO.map((h) => e("option", {
+              value: String(h), selected: h === DEFAULTS.sealedHours,
+            }, `${h} ${h === 1 ? "ora" : "ore"}`)))),
         e("p.muted.small", { style: "margin:0" },
           "L'asta live è una serata da passare insieme. Le buste chiuse non "
-          + "richiedono che siate collegati nello stesso momento: si manda "
-          + "un'offerta segreta per ogni giocatore e alla scadenza si assegna tutto."),
+          + "richiedono che siate collegati: si manda un'offerta segreta per ogni "
+          + "giocatore e alla scadenza del giro si assegna tutto. Se le rose non "
+          + "sono piene parte un altro giro, finché tutti non hanno completato — e "
+          + "chi salta due giri di fila si vede riempire la rosa d'ufficio."),
 
         e("label.row", { style: "gap:.5rem;font-size:.9rem" },
           e("input", { type: "checkbox", name: "open", style: "width:auto" }),
@@ -116,6 +124,7 @@ function openCreate(ctx) {
             rosterSize: roster,
             lineupSize: lineup,
             auctionMode: String(f.get("modo") || "live"),
+            sealedHours: Number(f.get("sealedhours")) || DEFAULTS.sealedHours,
             open: f.get("open") === "on",
           });
           close();

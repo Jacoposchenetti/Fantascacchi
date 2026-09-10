@@ -47,7 +47,7 @@ export const DEFAULTS = {
   bidSeconds: 20,    // durata di un lotto d'asta, si azzera a ogni rilancio
   turnSeconds: 60,   // tempo per chiamare quando tocca a te, poi si salta
   matchdays: 10,     // durata della stagione, in Titled Tuesday
-  sealedHours: 24,   // quanto dura un giro di buste chiuse
+  sealedHours: 12,   // durata di un giro di buste chiuse (ore)
   sealedSkipLimit: 2, // giri saltati di fila, poi la rosa si riempie d'ufficio
 };
 

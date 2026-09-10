@@ -10,6 +10,7 @@
 import { el, copy, confirmDialog } from "../ui.js";
 import { members, isOnline, inviteLink, nextTurnDeadline } from "../league.js";
 import { primeAudio } from "../alerts.js";
+import { regoleBusteChiuse } from "../sealed.js";
 import { showInvite } from "./invite.js";
 
 export default function lobbyView(ctx) {
@@ -82,11 +83,9 @@ export default function lobbyView(ctx) {
 
     league.auctionMode === "sealed"
       ? el("div.notice",
-          el("strong", "Asta a buste chiuse. "),
-          "Nessuno deve essere collegato insieme agli altri: si manda un'offerta "
-          + "segreta per ogni giocatore che si vuole, e alla scadenza del giro si "
-          + "assegna tutto in una volta. Vince chi ha offerto di più e paga quanto "
-          + "ha offerto. Se le rose non sono piene, si apre un altro giro.")
+          el("strong", "Asta a buste chiuse — come funziona"),
+          el("ul", { style: "margin:.4rem 0 0;padding-left:1.1rem" },
+            regoleBusteChiuse(league).map((r) => el("li", { style: "margin:.2rem 0" }, r))))
       : el("div.notice",
       el("strong", "Come funziona l'asta. "),
       `A turno si chiama un giocatore: hai ${league.turnSeconds || 60} secondi per scegliere, `,
