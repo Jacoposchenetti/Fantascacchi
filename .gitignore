@@ -6,3 +6,7 @@ desktop.ini
 # Cloud Functions
 functions/node_modules/
 .firebase/
+
+# Python
+__pycache__/
+*.pyc
