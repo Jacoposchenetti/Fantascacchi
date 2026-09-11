@@ -43,12 +43,18 @@ jobs:
       - name: Pubblica i risultati dei tornei
         run: python tools/build_results.py --events 12
 
+      # Indice nome vero -> username, per tradurre gli elenchi FIDE (che
+      # vanno per nome) in account chess.com. E' incrementale: la prima
+      # volta scarica ~1700 profili, poi solo chi e' diventato GM da allora.
+      - name: Aggiorna l'indice dei GM
+        run: python tools/build_gm_index.py --titles GM --max-new 300
+
       - name: Rigenera il listone
-        run: python tools/build_listone.py --events 26 --top 150
+        run: python tools/build_listone.py --events 26 --top 150 --fide-top 15
 
       - name: Committa solo se e' cambiato qualcosa
         run: |
-          git add -A data/tt data/listone.json
+          git add -A data/tt data/listone.json data/gm-index.json
           if git diff --cached --quiet; then
             echo "Nessun torneo nuovo e prezzi invariati: niente da committare."
             exit 0

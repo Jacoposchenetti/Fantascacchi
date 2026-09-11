@@ -605,7 +605,10 @@ function playerRow(ctx, p, myTurn) {
       el("div.pmain",
         el("div.pname",
           p.title && el("span.title-tag", { class: titleClass(p.title) }, p.title),
-          el("span", p.name)),
+          el("span", p.name),
+          // I primi al mondo si riconoscono a colpo d'occhio scorrendo il
+          // listone: senza, in mezzo a 150 nomi passano inosservati.
+          p.fideRank && el("span.badge.badge-gold", `n° ${p.fideRank}`)),
         el("div.pmeta",
           flag(p.country) && el("span", flag(p.country)),
           el("span", `${p.rating} blitz`),

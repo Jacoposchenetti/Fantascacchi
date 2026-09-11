@@ -22,6 +22,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fide
+
 API = "https://api.chess.com/pub"
 UA = "fantascacchi/0.1 (listone builder; https://github.com/)"
 
@@ -121,6 +124,9 @@ def main():
     ap.add_argument("--min-events", type=int, default=3,
                     help="presenze minime per finire nel listone: sotto, "
                          "la media e' troppo rumorosa per fidarsi")
+    ap.add_argument("--fide-top", type=int, default=15,
+                    help="quanti dei piu' forti al mondo (elenco FIDE) entrano "
+                         "comunque nel listone; 0 per non aggiungerne")
     ap.add_argument("--top", type=int, default=150,
                     help="quanti giocatori tenere nel listone")
     ap.add_argument("--budget", type=int, default=500)
@@ -183,6 +189,45 @@ def main():
         reverse=True,
     )[: args.top]
 
+    # I piu' forti del mondo entrano comunque.
+    #
+    # La classifica qui sopra e' giusta — chi non si presenta non ti fa punti —
+    # ma da sola buttava fuori Carlsen, che gioca due Titled Tuesday su
+    # ventisei. Un listone di fantascacchi senza il numero uno al mondo sembra
+    # rotto anche quando ha ragione, quindi i top FIDE si aggiungono in coda,
+    # fuori classifica. Il prezzo resta quello calcolato: cari perche' pesa il
+    # rating, poco redditizi perche' pesa la presenza. Una scommessa, non un
+    # acquisto ovvio.
+    #
+    # L'elenco arriva dall'export mensile della FIDE, quindi si aggiorna da
+    # solo: niente nomi scritti a mano che invecchiano.
+    fide_di = {}
+    if args.fide_top > 0:
+        try:
+            attivita = {u: a["events"] for u, a in agg.items()}
+            elenco, periodo = fide.risolvi(args.fide_top, attivita)
+            gia = {u for u, _ in ranked}
+            aggiunti = 0
+            for p in elenco:
+                if not p["user"]:
+                    print(f"      ? {p['nome']}: nessun account chess.com", flush=True)
+                    continue
+                fide_di[p["user"]] = {"fide": p["fide"], "fideRank": p["rank"]}
+                if p["user"] in gia:
+                    continue
+                # Chi non ha mai giocato un Titled Tuesday nella finestra non
+                # ha un aggregato: entra con zero presenze, che e' la verita'.
+                ranked.append((p["user"], agg.get(p["user"], {
+                    "events": 0, "pts": 0.0, "best": 9999, "history": [],
+                })))
+                aggiunti += 1
+            print(f"[2b/4] Top {args.fide_top} FIDE ({periodo}): "
+                  f"{aggiunti} aggiunti al listone", flush=True)
+        except Exception as e:
+            # Se la FIDE non risponde il listone si costruisce lo stesso:
+            # meglio senza i fuoriclasse che senza listone.
+            print(f"      ! top FIDE non disponibili: {e}", file=sys.stderr)
+
     print(f"[3/4] Scarico i profili di {len(ranked)} giocatori...", flush=True)
     players = []
     for i, (user, a) in enumerate(ranked, 1):
@@ -206,13 +251,18 @@ def main():
             "events": a["events"],
             "window": window,
             # Media sui SOLI tornei giocati: dice quanto e' forte quando c'e'.
-            "avgPoints": round(a["pts"] / a["events"], 2),
+            # Chi arriva dai top FIDE puo' non averne giocato nemmeno uno.
+            "avgPoints": round(a["pts"] / a["events"], 2) if a["events"] else 0,
             # Quota di tornei a cui si e' presentato, nella finestra osservata.
             "presence": round(a["events"] / window, 3),
             # Valore atteso per giornata: e' questo che finisce in classifica,
             # perche' chi non gioca vale zero (o quanto la tua panchina).
-            "expected": round((a["pts"] / a["events"]) * (a["events"] / window), 2),
-            "bestPlacement": a["best"],
+            "expected": (round((a["pts"] / a["events"]) * (a["events"] / window), 2)
+                         if a["events"] else 0),
+            "bestPlacement": a["best"] if a["best"] != 9999 else None,
+            # Presente solo per i top mondiali: la scheda giocatore ci scrive
+            # "n. 3 al mondo", che e' l'informazione che uno cerca davvero.
+            **fide_di.get(user, {}),
             # Dal piu' vecchio al piu' recente: i grafici si leggono cosi'.
             "history": sorted(a["history"], key=lambda h: h["d"]),
         })

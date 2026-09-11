@@ -457,6 +457,43 @@ giornate ti lascia un buco in formazione.
 All'asta l'app mostra entrambe: *«8.4/11 quando gioca»* e *«presente 21/26»*,
 con la presenza colorata (verde sopra l'80%, rossa sotto il 55%).
 
+### I più forti del mondo entrano comunque
+
+Quel criterio, da solo, buttava fuori **Carlsen**: gioca due Titled Tuesday su
+ventisei, quindi il suo valore atteso è 1,46 contro il 2,71 del 150° in lista.
+Non arrivava 151°, stava sotto tutti. Matematicamente giusto, ma un listone di
+fantascacchi senza il numero uno al mondo sembra rotto anche quando ha ragione.
+
+Quindi i **top 15 FIDE** entrano sempre, fuori classifica, col prezzo normale:
+cari perché il prezzo pesa il rating, poco redditizi perché pesa la presenza.
+Una scommessa vera, che è il genere di dilemma per cui esiste un'asta.
+
+L'elenco **non è scritto a mano** — invecchierebbe. Arriva dall'export mensile
+della FIDE e si aggiorna da solo quando cambia la classifica mondiale:
+
+```bash
+python tools/fide.py --top 15
+```
+
+Due ostacoli, risolti così:
+
+- **chess.com non espone il rating FIDE** (è `null` anche sul profilo di
+  Carlsen) e le classifiche su `ratings.fide.com` si disegnano in JavaScript,
+  quindi da uno script non restituiscono niente. Si usa l'export ufficiale in
+  formato testo: colonne fisse, stabile da anni. Le posizioni delle colonne si
+  ricavano dall'intestazione, così se la FIDE ne sposta una non si legge in
+  silenzio il campo sbagliato.
+- **La FIDE ragiona per nome, chess.com per username**, e non c'è nessun
+  endpoint che traduca. `tools/build_gm_index.py` costruisce l'indice leggendo
+  il campo `name` dai profili dei ~1700 GM: sei minuti la prima volta, poi è
+  incrementale e scarica solo chi è diventato GM da allora.
+
+Il caso difficile non è l'omonimia ma il contrario: **i fuoriclasse hanno più
+account**. Hikaru Nakamura ne ha cinque intestati allo stesso nome, fra secondi
+account e quello per lo streaming. A scegliere il principale è chi i Titled
+Tuesday li gioca davvero — un account alternativo che non scende mai in campo
+non farebbe punti a nessuno.
+
 ### Eliminare una lega
 
 Chi l'ha creata la trova in **Impostazioni → Zona pericolosa → Elimina la

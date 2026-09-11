@@ -49,8 +49,16 @@ export function showPlayer(ctx, player, extra = null) {
                 ratingChart(player)),
             )
           : el("p.small.mute-2",
-              "Nessuno storico: questo giocatore è stato aggiunto a mano e non "
-              + "è passato dall'aggregazione dei tornei."),
+              // Due motivi diversi per non avere storico, e vanno distinti:
+              // uno e' un nome pescato a mano, l'altro e' un fuoriclasse che
+              // il Titled Tuesday non lo gioca. Il secondo e' un'informazione
+              // che serve prima di puntarci dei crediti.
+              player.fideRank
+                ? `Nessuno storico: è fra i primi al mondo per rating FIDE, ma `
+                  + `non ha giocato Titled Tuesday negli ultimi sei mesi. `
+                  + `Comprarlo è una scommessa sul fatto che si presenti.`
+                : "Nessuno storico: questo giocatore è stato aggiunto a mano e non "
+                  + "è passato dall'aggregazione dei tornei."),
         extra,
       ),
     );
@@ -67,9 +75,13 @@ function header(ctx, p, close) {
     el("div", { style: "min-width:0" },
       el("div.pc-name",
         p.title && el("span.title-tag", { class: p.title.toLowerCase() }, p.title),
-        el("span", p.name)),
+        el("span", p.name),
+        // Chi sta nei primi posti al mondo lo si dice subito: e' il dato
+        // che si cerca per primo, e non si legge dal rating blitz.
+        p.fideRank && el("span.badge.badge-gold", `n° ${p.fideRank} al mondo`)),
       el("div.pc-sub",
-        flag(p.country), " ", el("span.mono", p.username)),
+        flag(p.country), " ", el("span.mono", p.username),
+        p.fide && el("span", ` · ${p.fide} FIDE`)),
     ),
     el("button.pc-close", {
       type: "button", onclick: close, "aria-label": "Chiudi la scheda",
