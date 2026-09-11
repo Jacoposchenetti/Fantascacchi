@@ -336,7 +336,7 @@ async function bid(ctx, amount) {
 }
 
 /** Chiude il lotto e apre il turno successivo. Idempotente. */
-async function closeLot(ctx) {
+export async function closeLot(ctx) {
   await ctx.mutate((lg) => {
     const a = lg.auction || {};
     if (a.status !== "running" || !a.playerId) return null;

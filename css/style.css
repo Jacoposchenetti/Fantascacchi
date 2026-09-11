@@ -509,3 +509,13 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
 }
 .avviso-testo { flex: 1 1 16rem; min-width: 0; }
 .avviso strong { color: var(--text); }
+
+/* Tutorial: la guida resta appiccicata in alto mentre sotto scorre l'app
+   vera, cosi' le istruzioni non spariscono appena si scorre il listone.
+   Il palco ha un bordo tenue per dire "questa e' l'app, non la guida". */
+.guida { position: sticky; top: .5rem; z-index: 5; }
+.tut-palco {
+  border: 1px dashed var(--line); border-radius: var(--radius);
+  padding: clamp(.6rem, 2vw, 1rem);
+}
+.tut-palco > * { margin: 0; }

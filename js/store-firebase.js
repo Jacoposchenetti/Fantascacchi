@@ -220,11 +220,18 @@ export async function firebaseAdapter() {
      * i figli da solo: si svuotano a mano. Per una lega tra amici sono
      * poche decine di documenti.
      */
+    /**
+     * Cancella SOLO il documento della lega. Le sottocollezioni le pulisce
+     * la Cloud Function `legaEliminata`, che gira come amministratore.
+     *
+     * Prima le svuotava questo metodo, e non poteva funzionare: le regole
+     * lasciano scrivere in `presence/{uid}` e `bids/{uid}` solo al diretto
+     * interessato, quindi l'admin prendeva permission-denied sul documento
+     * del primo altro partecipante. Il Promise.all falliva e la riga che
+     * cancellava la lega non veniva mai raggiunta: si confermava
+     * l'eliminazione e non spariva niente.
+     */
     async deleteLeague(id) {
-      for (const coll of [mdsRef(id), presColl(id), bidColl(id)]) {
-        const snap = await getDocs(coll);
-        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-      }
       await deleteDoc(leagueRef(id));
     },
 

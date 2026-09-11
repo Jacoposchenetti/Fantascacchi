@@ -17,7 +17,7 @@
    ripartire il trigger qui sopra, all'infinito.
    --------------------------------------------------------------- */
 
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
@@ -172,6 +172,32 @@ export function cambiamenti(prima, dopo, id) {
 
   return out.filter((a) => a.a.length);
 }
+
+/* ======================== pulizia dopo l'eliminazione ================== */
+
+/**
+ * Quando una lega sparisce, si porta dietro tutto il resto.
+ *
+ * Non lo puo' fare il client: le regole lasciano scrivere in `presence/{uid}`
+ * e `bids/{uid}` solo al diretto interessato, quindi chi elimina la lega non
+ * ha il permesso di cancellare i documenti degli altri. Qui invece si gira
+ * con l'Admin SDK, che le regole non le vede.
+ *
+ * `recursiveDelete` scende da solo in matchdays, presence e bids: sono
+ * sottocollezioni, e in Firestore sopravvivono al documento che le contiene
+ * se non le cancella qualcuno apposta.
+ */
+export const legaEliminata = onDocumentDeleted("leagues/{leagueId}", async (event) => {
+  const db = getFirestore();
+  const id = event.params.leagueId;
+  try {
+    await db.recursiveDelete(db.collection("leagues").doc(id));
+    await db.collection("promemoria").doc(id).delete();
+    console.log(`lega ${id}: sottocollezioni e promemoria ripuliti`);
+  } catch (e) {
+    console.error(`lega ${id}: pulizia non riuscita`, e?.message);
+  }
+});
 
 /* ========================== le scadenze ============================== */
 

@@ -18,6 +18,10 @@ export default function homeView(ctx) {
         el("button.btn.btn-primary.btn-lg", { onclick: () => openCreate(ctx) }, "Crea una lega"),
         el("button.btn.btn-lg", { onclick: () => openJoin(ctx) }, "Entra con un codice"),
       ),
+      el("div.row", { style: "justify-content:center;margin-top:.2rem" },
+        el("button.btn.btn-ghost.btn-sm", { onclick: () => ctx.go("#/demo") },
+          "Non hai mai giocato? Provala in tre minuti →"),
+      ),
     ),
 
     store.mode === "local" && el("div.notice",
@@ -31,7 +35,8 @@ export default function homeView(ctx) {
     openLeaguesSection(ctx),
 
     el("section",
-      el("div.section-head", el("h2", "Come funziona")),
+      el("div.section-head", el("h2", "Come funziona"),
+        el("button.btn.btn-sm", { onclick: () => ctx.go("#/demo") }, "Provala")),
       el("div.grid",
         step("1", "Asta", "Ognuno ha un budget in crediti. Si nomina un giocatore a turno e si rilancia: chi offre di più se lo porta a casa. Ogni scacchista può appartenere a un solo partecipante."),
         step("2", "Formazione", "Prima di ogni Titled Tuesday scegli chi schierare e chi nominare capitano. Il capitano raddoppia. Chi non gioca il torneo viene sostituito dalla panchina."),

@@ -24,6 +24,7 @@ import lineupView from "./views/lineup.js";
 import matchdaysView from "./views/matchdays.js";
 import standingsView from "./views/standings.js";
 import settingsView from "./views/settings.js";
+import tutorialView from "./views/tutorial.js";
 
 const TABS = [
   { key: "asta",         label: "Asta",       view: auctionView },
@@ -56,6 +57,7 @@ function parseHash() {
   const raw = location.hash.replace(/^#\/?/, "");
   const parts = raw.split("/").filter(Boolean);
   if (!parts.length) return { name: "home", leagueId: null, tab: null };
+  if (parts[0] === "demo") return { name: "demo", leagueId: null, tab: null };
   if (parts[0] === "join" && parts[1]) return { name: "join", leagueId: parts[1], tab: null };
   if (parts[0] === "l" && parts[1]) {
     return { name: "league", leagueId: parts[1], tab: parts[2] || "asta" };
@@ -282,7 +284,12 @@ function renderApp() {
   renderAvvisi();
 
   try {
-    if (!isAuthed()) {
+    if (state.route.name === "demo") {
+      // Il tutorial si guarda anche da sconosciuti: e' la vetrina, chiedere
+      // di accedere prima di far vedere cos'e' sarebbe il modo piu' rapido
+      // di perdere chi e' appena arrivato.
+      render(root, tutorialView(buildCtxLite()));
+    } else if (!isAuthed()) {
       render(root, loginView(buildCtxLite(), state.route.leagueId));
     } else if (state.route.name === "home") {
       render(root, homeView(buildCtxLite()));
@@ -345,6 +352,13 @@ function isAuthed() {
 
 async function onRouteChange() {
   state.route = parseHash();
+
+  if (state.route.name === "demo") {
+    unsubscribeAll();
+    state.subscribedTo = null;
+    renderApp();
+    return;
+  }
 
   // Senza sessione non si legge nulla da Firestore: si mostra il login.
   if (!isAuthed()) {
