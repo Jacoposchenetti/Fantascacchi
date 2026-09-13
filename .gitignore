@@ -13,3 +13,4 @@ __pycache__/
 
 # Analisi: i CSV simulati si rigenerano, non si versionano
 tools/analisi/*.csv
+tools/mondiali/cache/
