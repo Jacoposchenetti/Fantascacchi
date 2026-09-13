@@ -194,10 +194,6 @@ export const giaGiocata = (slot) =>
   slot?.status === "scored" || slot?.status === "pending";
 
 /** Quanti partecipanti hanno una formazione utilizzabile per la giornata. */
-export function readyCount(matchdays, n, uids) {
-  return uids.filter((u) => effectiveLineup(matchdays, n, u)).length;
-}
-
 /* -------------------------------- risultati ---------------------------- */
 
 /**

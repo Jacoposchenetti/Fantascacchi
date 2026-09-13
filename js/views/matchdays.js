@@ -10,7 +10,7 @@
 import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
 import { scoreMatchday } from "../scoring.js";
 import { members, memberName, allOwnedPlayerIds } from "../league.js";
-import { lineupsFor, effectiveLineup, readyCount, giaGiocata, dataLunga, quando } from "../season.js";
+import { effectiveLineup, giaGiocata, dataLunga, quando } from "../season.js";
 import livePanel, { inDiretta, linkTorneo } from "./live.js";
 
 const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
@@ -68,11 +68,6 @@ export default function matchdaysView(ctx) {
 
 function slotCard(ctx, slot) {
   const { league, results } = ctx;
-  const own = lineupsFor(ctx.matchdays, slot.n);
-  const uids = members(league).map((m) => m.uid);
-  const nMembers = uids.length;
-  const nLineups = readyCount(ctx.matchdays, slot.n, uids);
-  const nEreditate = nLineups - Object.keys(own).length;
   const res = results.get(slot.n);
   const [cls, label] = STATI[slot.status] || ["", slot.status];
 
@@ -89,11 +84,6 @@ function slotCard(ctx, slot) {
               ? "torneo giocato, risultati in arrivo"
               : `${slot.played} partecipanti`)),
       el("span.badge." + cls, label)),
-
-    slot.status !== "scored" && slot.status !== "pending" && el("div.small.muted",
-      `${nLineups} su ${nMembers} hanno scelto la formazione`,
-      nEreditate > 0 ? ` · ${nEreditate} ereditate dalla giornata prima` : "",
-      nLineups < nMembers ? " · gli altri schierano i più pagati" : ""),
 
     inDiretta(slot) && livePanel(ctx, slot),
 
