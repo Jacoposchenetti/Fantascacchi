@@ -118,6 +118,7 @@ async function subscribeLeague(id) {
   state.presence = {};
   state.plan = null;
   state.results = new Map();
+  ancoraStagione = null;
   state.error = null;
   state.loading = true;
   renderApp();
@@ -164,9 +165,26 @@ async function subscribeLeague(id) {
  * chiusura dell'asta, e i punteggi arrivano da file statici pubblicati dalla
  * GitHub Action. Qui si scaricano solo quelli non ancora visti.
  */
+let ancoraStagione = null;
+
 async function syncSeason() {
   if (!state.league) return;
   if (!state.calendar) state.calendar = await loadCalendar();
+
+  // I risultati stanno in una mappa indicizzata per NUMERO di giornata, e
+  // quel numero non e' stabile: finche' l'asta e' aperta `startsAt` vale 0 e
+  // il piano si riempie di Titled Tuesday gia' archiviati, tutti con i loro
+  // punteggi; alla chiusura dell'asta `startsAt` diventa adesso e le stesse
+  // caselle 1..N passano a indicare martedi' futuri. Senza svuotare, la
+  // giornata 1 di domani si ritrovava addosso i punti di un torneo di mesi
+  // fa: bastava avere una formazione per vedersi assegnare centinaia di
+  // fantapunti prima ancora di giocare.
+  const ancora = state.league.season?.startsAt || 0;
+  if (ancora !== ancoraStagione) {
+    ancoraStagione = ancora;
+    state.results = new Map();
+  }
+
   state.plan = seasonPlan(state.league, state.calendar);
 
   for (const slot of state.plan.slots) {

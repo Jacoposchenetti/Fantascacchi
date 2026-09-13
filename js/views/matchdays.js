@@ -10,7 +10,7 @@
 import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
 import { scoreMatchday } from "../scoring.js";
 import { members, memberName, allOwnedPlayerIds } from "../league.js";
-import { lineupsFor, effectiveLineup, readyCount, dataLunga, quando } from "../season.js";
+import { lineupsFor, effectiveLineup, readyCount, giaGiocata, dataLunga, quando } from "../season.js";
 import livePanel, { inDiretta, linkTorneo } from "./live.js";
 
 const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
@@ -91,8 +91,9 @@ function slotCard(ctx, slot) {
       el("span.badge." + cls, label)),
 
     slot.status !== "scored" && slot.status !== "pending" && el("div.small.muted",
-      `${nLineups}/${nMembers} formazioni pronte`,
-      nEreditate > 0 ? ` · ${nEreditate} ereditate dalla giornata prima` : ""),
+      `${nLineups} su ${nMembers} hanno scelto la formazione`,
+      nEreditate > 0 ? ` · ${nEreditate} ereditate dalla giornata prima` : "",
+      nLineups < nMembers ? " · gli altri schierano i più pagati" : ""),
 
     inDiretta(slot) && livePanel(ctx, slot),
 
@@ -100,7 +101,10 @@ function slotCard(ctx, slot) {
       "Il torneo si è giocato. I punteggi compaiono da soli non appena la "
       + "classifica è disponibile — di solito entro il mercoledì mattina."),
 
-    res && scoreTable(ctx, slot, res),
+    // Mai punteggi per un torneo non ancora giocato. Il risultato in memoria
+    // puo' essere avanzato da un piano precedente: le giornate sono numerate,
+    // e alla chiusura dell'asta la numerazione si sposta tutta.
+    res && giaGiocata(slot) && scoreTable(ctx, slot, res),
 
     el("div.row",
       slot.status === "open" && el("button.btn.btn-sm.btn-primary", {
@@ -123,7 +127,7 @@ function slotCard(ctx, slot) {
 export function scoreSlot(ctx, slot, res) {
   const lineups = new Map();
   for (const m of members(ctx.league)) {
-    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
+    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid, ctx.league, ctx.catalog);
     if (lu) lineups.set(m.uid, lu);
   }
   return scoreMatchday(lineups, resultsMap(ctx, slot, res), res.h2h,
@@ -149,7 +153,7 @@ function scoreTable(ctx, slot, res) {
         el("td",
           el("span.rankcell", { class: i < 3 ? `rank-${i + 1}` : "" }, `${i + 1}. `),
           r.name,
-          r.missing && el("span.badge.badge-red", { style: "margin-left:.4rem" }, "No formazione")),
+          ),
         el("td.num", { class: ptsClass(duelSum(r)) },
           r.detail?.duels?.length ? fmtPts(duelSum(r)) : "—"),
         el("td.num", { class: ptsClass(r.total) }, r.total.toFixed(1)),

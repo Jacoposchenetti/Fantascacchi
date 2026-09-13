@@ -19,6 +19,7 @@
    --------------------------------------------------------------- */
 
 import { discoverTitledTuesdays, fetchStandings } from "./chesscom.js";
+import { rosterOf } from "./league.js";
 
 /** I Titled Tuesday partono alle 15:00 UTC. Verificato su sei mesi di tornei. */
 const TT_HOUR_UTC = 15;
@@ -143,15 +144,54 @@ export function lineupsFor(matchdays, n) {
  * con l'ultima che ha messo invece di prendere zero, e non serve scrivere
  * niente sul database per ogni giornata che passa.
  */
-export function effectiveLineup(matchdays, n, uid) {
+/**
+ * La formazione di chi non ne ha mai messa una: i piu' pagati in campo,
+ * il piu' pagato capitano, il resto in panchina.
+ *
+ * Prima in quel caso non c'era NIENTE, e chi non apriva l'app prendeva
+ * zero. Ma la rosa ce l'ha: non aver toccato la formazione non e' una
+ * scelta di non giocare, e` semplicemente non aver cambiato l'ordine
+ * ovvio. Meglio schierare il meglio che ha e lasciarlo giocare.
+ */
+export function formazionePredefinita(league, catalog, uid) {
+  if (!league || !catalog) return null;
+  const rosa = rosterOf(league, catalog, uid);     // gia' dal piu' caro
+  if (!rosa.length) return null;
+  const ids = rosa.map((r) => r.playerId);
+  const quanti = league.lineupSize || ids.length;
+  return {
+    starters: ids.slice(0, quanti),
+    bench: ids.slice(quanti),
+    captain: ids[0] || null,
+    predefinita: true,
+  };
+}
+
+/**
+ * La formazione che conta per la giornata n: quella salvata, altrimenti
+ * l'ultima messa in una giornata precedente, altrimenti la predefinita.
+ *
+ * `league` e `catalog` servono solo per l'ultimo gradino: chi non li passa
+ * ottiene null come prima, che e' comodo per sapere se una scelta c'e' stata.
+ */
+export function effectiveLineup(matchdays, n, uid, league = null, catalog = null) {
   for (let i = n; i >= 1; i--) {
     const lu = lineupsFor(matchdays, i)[uid];
     if (lu?.starters?.length) {
       return i === n ? lu : { ...lu, inheritedFrom: i };
     }
   }
-  return null;
+  return formazionePredefinita(league, catalog, uid);
 }
+
+/**
+ * Il torneo di questa giornata si e' gia' giocato?
+ *
+ * Serve perche' i punteggi non vanno mai mostrati per un martedi' che deve
+ * ancora arrivare, nemmeno se in memoria e' rimasto un risultato vecchio.
+ */
+export const giaGiocata = (slot) =>
+  slot?.status === "scored" || slot?.status === "pending";
 
 /** Quanti partecipanti hanno una formazione utilizzabile per la giornata. */
 export function readyCount(matchdays, n, uids) {

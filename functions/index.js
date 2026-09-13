@@ -25,6 +25,10 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 import { invia } from "./push.js";
+// La logica d'asta e' quella VERA del client, copiata qui dal predeploy
+// (tools/sync_condiviso.mjs). Riscriverla a mano significherebbe due
+// implementazioni che prima o poi assegnano giocatori diversi.
+import { risolvi, applica, DEFAULT_ORE } from "./condiviso/sealed.js";
 import {
   uids, nome, nominator, chiSceglie, daCompletare,
   numeroGiornata, slotDocId, nextTuesday,
@@ -252,6 +256,14 @@ export const promemoria = onSchedule(
     for (const doc of snap.docs) {
       const lg = doc.data();
       const id = doc.id;
+      // Prima si fa andare avanti il gioco, poi si avvisa: se un giro era
+      // scaduto, gli avvisi giusti sono quelli del giro NUOVO.
+      try {
+        if (await risolviBusteScadute(db, lg, id, now)) continue;
+      } catch (e) {
+        console.error(`lega ${id}: risoluzione buste non riuscita`, e?.message);
+      }
+
       const segna = db.collection("promemoria").doc(id);
       const fatti = (await segna.get()).data() || {};
       const nuovi = {};
@@ -337,4 +349,104 @@ async function scadenze(db, lg, id, now, fatti, nuovi) {
   }
 
   return out;
+}
+
+
+/* ==================== buste chiuse: risoluzione d'ufficio ============== */
+
+/**
+ * Il listone, per sapere quali giocatori sono liberi e quanto costano.
+ * Si prende dal sito pubblicato, cosi' e' sempre quello aggiornato dalla
+ * GitHub Action del mercoledi' invece di una copia congelata nel bundle.
+ */
+const LISTONE_URL =
+  "https://jacoposchenetti.github.io/Fantascacchi/data/listone.json";
+let listoneCache = { quando: 0, players: null };
+
+async function listone() {
+  const ORA_MS = 60 * 60 * 1000;
+  if (listoneCache.players && Date.now() - listoneCache.quando < ORA_MS) {
+    return listoneCache.players;
+  }
+  const r = await fetch(LISTONE_URL);
+  if (!r.ok) throw new Error(`listone non raggiungibile (${r.status})`);
+  const d = await r.json();
+  listoneCache = { quando: Date.now(), players: d.players || [] };
+  return listoneCache.players;
+}
+
+/**
+ * Chiude un giro di buste chiuse scaduto.
+ *
+ * Finora lo faceva solo il browser, e solo mentre qualcuno teneva aperta
+ * la pagina dell'asta. Con i giri da 24 ore capitava la cosa ovvia: il
+ * giro scadeva di notte, nessuno apriva l'app per un giorno, e l'asta
+ * restava semplicemente ferma. Nessun errore, nessun avviso, solo
+ * un'asta che non andava avanti.
+ *
+ * Il client continua a risolvere quando c'e' qualcuno collegato — cosi'
+ * e' immediato invece di aspettare il quarto d'ora — e questa e' la rete
+ * di sicurezza. Chi arriva secondo trova la scadenza gia' spostata e si
+ * ferma: e' la transazione a decidere, non l'ordine di arrivo.
+ *
+ * @returns true se il giro e' stato chiuso qui.
+ */
+export async function risolviBusteScadute(db, lg, id, now) {
+  if ((lg.auctionMode || "live") !== "sealed") return false;
+  if (lg.phase !== "auction") return false;
+  const scadenza = lg.sealed?.scadenza || 0;
+  if (!scadenza || now < scadenza) return false;
+
+  const ref = db.collection("leagues").doc(id);
+  const buste = await ref.collection("bids").get();
+  const catalogo = await listone();
+
+  let chiuso = false;
+  await db.runTransaction(async (tx) => {
+    // Firestore ripete la callback quando due transazioni si contendono lo
+    // stesso documento: l'esito va azzerato a ogni tentativo, altrimenti
+    // resta acceso da un giro annullato e si annuncia una chiusura che non
+    // e' avvenuta.
+    chiuso = false;
+    const snap = await tx.get(ref);
+    const cur = snap.data();
+    // Qualcun altro (o un browser aperto) ha gia' chiuso questo giro.
+    if (!cur?.sealed?.scadenza || Date.now() < cur.sealed.scadenza) return;
+    if (cur.phase !== "auction") return;
+
+    // Le buste rimaste da un giro precedente non contano: sono proprio
+    // quelle che tenevano fermo il contatore dei giri saltati.
+    const risoltoIl = cur.sealed?.risoltoIl || 0;
+    const tutte = {};
+    for (const d of buste.docs) {
+      const v = d.data() || {};
+      const at = v.at || 0;
+      if (at && at < risoltoIl) continue;
+      const offerte = v.bids || {};
+      if (Object.keys(offerte).length) tutte[d.id] = offerte;
+    }
+
+    // Tutto si calcola sullo stato letto DENTRO la transazione: usare
+    // quello di prima significherebbe assegnare su una fotografia vecchia.
+    const { assegnazioni } = risolvi(cur, tutte);
+    const presi = cur.roster || {};
+    const liberiEconomici = [
+      ...catalogo,
+      ...Object.values(cur.customPlayers || {}),
+    ].filter((p) => !presi[p.id])
+      .sort((a, b) => (a.price || 0) - (b.price || 0))
+      .map((p) => p.id);
+
+    tx.set(ref, applica(cur, assegnazioni, cur.sealedHours || DEFAULT_ORE, {
+      chiHaOfferto: new Set(Object.keys(tutte)),
+      liberiEconomici,
+    }));
+    chiuso = true;
+    console.log(`lega ${id}: giro ${cur.sealed?.giro || 1} chiuso d'ufficio, `
+      + `${assegnazioni.length} assegnazioni, ${Object.keys(tutte).length} hanno offerto`);
+  });
+
+  // Le buste le cancella il trigger `busteRipulite`, che scatta sulla
+  // scrittura appena fatta.
+  return chiuso;
 }

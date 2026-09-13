@@ -29,7 +29,7 @@ export default function livePanel(ctx, slot) {
   // Chi conta: gli scacchisti schierati da qualcuno per questa giornata.
   const schierati = new Map();     // username -> uid
   for (const m of members(league)) {
-    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid);
+    const lu = effectiveLineup(ctx.matchdays, slot.n, m.uid, ctx.league, ctx.catalog);
     for (const pid of [...(lu?.starters || []), ...(lu?.bench || [])]) {
       if (!schierati.has(pid)) schierati.set(pid, m.uid);
     }

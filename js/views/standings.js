@@ -2,7 +2,7 @@
 
 import { el, ptsClass } from "../ui.js";
 import { members } from "../league.js";
-import { dataBreve, dataLunga } from "../season.js";
+import { dataBreve, dataLunga, giaGiocata } from "../season.js";
 import { scoreSlot } from "./matchdays.js";
 
 export default function standingsView(ctx) {
@@ -10,8 +10,11 @@ export default function standingsView(ctx) {
   if (!catalog) return el("div.card", "Carico il listone…");
   if (!plan) return el("div.card", "Carico il calendario…");
 
-  // Solo le giornate per cui i risultati sono arrivati davvero.
-  const giocate = plan.slots.filter((s) => results.has(s.n));
+  // Solo le giornate GIOCATE per cui i risultati sono arrivati davvero.
+  // Il solo `results.has` non basta: e' una mappa per numero di giornata, e
+  // alla chiusura dell'asta la numerazione si sposta, quindi puo' contenere
+  // ancora il risultato di un torneo che adesso sta sotto un altro numero.
+  const giocate = plan.slots.filter((s) => giaGiocata(s) && results.has(s.n));
 
   const table = members(league).map((m) => {
     // scoreSlot fa la passata sull'intera lega: serve perche' gli scontri

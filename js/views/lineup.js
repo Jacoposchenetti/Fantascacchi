@@ -37,7 +37,7 @@ export default function lineupView(ctx) {
 
   // Salvata per QUESTA giornata, oppure ereditata dall'ultima messa.
   const own = lineupsFor(ctx.matchdays, slot.n)[uid] || null;
-  const eff = own || effectiveLineup(ctx.matchdays, slot.n, uid);
+  const eff = own || effectiveLineup(ctx.matchdays, slot.n, uid, league, catalog);
   const inherited = !own && Boolean(eff);
 
   const draft = drafts.get(slot.n) || normalize(eff, mine, league.lineupSize);
@@ -109,6 +109,7 @@ export default function lineupView(ctx) {
           el("div.small.muted",
             `Titled Tuesday del ${dataLunga(slot.date)} · si gioca ${quando(slot.start)}`)),
         own ? el("span.badge.badge-green", "Salvata")
+          : eff?.predefinita ? el("span.badge", "Predefinita")
           : inherited ? el("span.badge.badge-gold", "Ereditata")
           : el("span.badge.badge-red", "Da mettere")),
 
@@ -116,9 +117,16 @@ export default function lineupView(ctx) {
         "Gli schieramenti si chiudono da soli all'inizio del torneo, ",
         el("span.mono", oraLocale(slot.start)), "."),
 
+      // Tre origini diverse, e vale la pena distinguerle: una formazione
+      // ereditata l'hai scelta tu una settimana fa, quella predefinita non
+      // l'ha scelta nessuno. In entrambi i casi si gioca, e va detto.
       inherited && el("div.notice",
-        `Questa è la formazione della giornata ${eff.inheritedFrom || slot.n - 1}. `
-        + "Vale così com'è anche se non tocchi niente: confermala o cambiala."),
+        eff?.predefinita
+          ? "Non hai ancora toccato la formazione, quindi scendono in campo i "
+            + "tuoi giocatori più pagati, col più caro capitano. Vale così "
+            + "com'è: cambiala se preferisci altro."
+          : `Questa è la formazione della giornata ${eff.inheritedFrom || slot.n - 1}. `
+            + "Vale così com'è anche se non tocchi niente: confermala o cambiala."),
 
       el("div.small.muted",
         need > 0 ? `Mancano ${need} titolari.`
@@ -191,7 +199,7 @@ function chiusa(ctx, plan, mine) {
 
 function ultimaFormazione(ctx, mine, plan) {
   for (let n = plan.total; n >= 1; n--) {
-    const lu = effectiveLineup(ctx.matchdays, n, ctx.uid);
+    const lu = effectiveLineup(ctx.matchdays, n, ctx.uid, ctx.league, ctx.catalog);
     if (!lu) continue;
     const byId = new Map(mine.map((r) => [r.playerId, r.player]));
     return el("section",

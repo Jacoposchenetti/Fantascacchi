@@ -23,6 +23,7 @@
  * comunque controllati singolarmente.
  */
 
+import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -97,3 +98,16 @@ if (rotti) {
   process.exit(1);
 }
 console.log("\nTutti i moduli si collegano, app.js compreso.");
+
+// Le Cloud Functions girano su una COPIA di alcuni moduli, perche' il deploy
+// vede solo la cartella functions/. Se la copia resta indietro, server e
+// client calcolano l'asta in modo diverso: e' il guaio che non da' errori,
+// assegna soltanto giocatori sbagliati. Meglio accorgersene qui.
+console.log("\nModuli condivisi con le Cloud Functions:");
+const sync = spawnSync(process.execPath, ["tools/sync_condiviso.mjs", "--check"],
+  { encoding: "utf8" });
+process.stdout.write(sync.stdout || "");
+if (sync.status !== 0) {
+  process.stderr.write(sync.stderr || "");
+  process.exit(1);
+}
