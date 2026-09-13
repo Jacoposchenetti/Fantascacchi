@@ -8,6 +8,23 @@ import { scoreSlot } from "./matchdays.js";
 export default function standingsView(ctx) {
   const { league, plan, results, catalog, uid } = ctx;
   if (!catalog) return el("div.card", "Carico il listone…");
+
+  // Prima della chiusura dell'asta `season.startsAt` vale 0, e il piano si
+  // riempie dei Titled Tuesday gia' archiviati: la classifica annunciava
+  // "stagione conclusa, 10 giornate su 10" a gente che non aveva ancora
+  // fatto l'asta. Finche' la stagione non comincia non c'e' niente da
+  // classificare.
+  if (league.phase !== "season") {
+    return el("div.card.stack",
+      el("h2", "La stagione non è ancora iniziata"),
+      el("p.muted", { style: "margin:0" },
+        "La classifica si riempie da sola a partire dal primo Titled Tuesday "
+        + "dopo la chiusura dell'asta."),
+      el("button.btn.btn-primary", { onclick: () => ctx.go(`#/l/${league.id}/asta`) },
+        "Vai all'asta"),
+    );
+  }
+
   if (!plan) return el("div.card", "Carico il calendario…");
 
   // Solo le giornate GIOCATE per cui i risultati sono arrivati davvero.

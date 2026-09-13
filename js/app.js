@@ -249,6 +249,51 @@ function restoreFocus(snap) {
   }
 }
 
+/* ------------------------------ menu laterale --------------------------- */
+
+/**
+ * Su schermo stretto le sei schede non stanno in orizzontale: diventano un
+ * cassetto. Aprirlo blocca lo scorrimento dietro, altrimenti scorrendo il
+ * menu si trascina anche la pagina sotto.
+ */
+function apriMenu() {
+  if (document.body.classList.contains("menu-aperto")) return;
+  document.body.classList.add("menu-aperto");
+  document.body.style.overflow = "hidden";
+  $("#btn-menu").setAttribute("aria-expanded", "true");
+  // Il fuoco entra nel cassetto: chi naviga da tastiera non deve inseguirlo.
+  $("#drawer").querySelector("button")?.focus({ preventScroll: true });
+}
+
+function chiudiMenu({ tornaAlPulsante = false } = {}) {
+  if (!document.body.classList.contains("menu-aperto")) return;
+  document.body.classList.remove("menu-aperto");
+  document.body.style.overflow = "";
+  const bottone = $("#btn-menu");
+  bottone.setAttribute("aria-expanded", "false");
+  if (tornaAlPulsante && !bottone.hidden) bottone.focus({ preventScroll: true });
+}
+
+function initMenu() {
+  $("#btn-menu").onclick = () => {
+    document.body.classList.contains("menu-aperto")
+      ? chiudiMenu({ tornaAlPulsante: true })
+      : apriMenu();
+  };
+  $("#btn-menu-close").onclick = () => chiudiMenu({ tornaAlPulsante: true });
+  $("#scrim").onclick = () => chiudiMenu();
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") chiudiMenu({ tornaAlPulsante: true });
+  });
+  // Allargando la finestra il cassetto sparisce per CSS: se restasse
+  // "aperto" lo scorrimento della pagina rimarrebbe bloccato a vuoto.
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 880) chiudiMenu();
+  });
+}
+
+/* -------------------------------- chrome ------------------------------- */
+
 function renderChrome() {
   const bar = $("#topbar");
   const inLeague = state.route.name === "league" && state.league;
@@ -262,12 +307,17 @@ function renderChrome() {
   const me = $("#me");
 
   const apriProfilo = (legaCorrente) => () => {
+    chiudiMenu();
     import("./views/profile.js").then((m) =>
       m.showProfile(buildCtxLite(), { legaCorrente }));
   };
 
   if (!inLeague) {
     render(tabsBox);
+    render($("#drawer-tabs"));
+    render($("#drawer-foot"));
+    $("#btn-menu").hidden = true;
+    chiudiMenu();
     invite.hidden = true;
     // Fuori da una lega il chip serve solo se c'e' un account dietro:
     // in modalita' locale senza nome non mostra nulla di utile.
@@ -279,17 +329,35 @@ function renderChrome() {
     return;
   }
   me.hidden = false;
+  $("#btn-menu").hidden = false;
+  $("#drawer-title").textContent = state.league.name || "Lega";
 
-  render(tabsBox, TABS.map((t) => el("button.tab", {
+  // Gli stessi comandi in due posti: in orizzontale sopra, in verticale nel
+  // cassetto. Si costruiscono due volte perche' lo stesso nodo non puo'
+  // stare in due punti del documento.
+  const schede = () => TABS.map((t) => el("button.tab", {
     type: "button",
-    onclick: () => go(`#/l/${state.league.id}/${t.key}`),
+    onclick: () => { chiudiMenu(); go(`#/l/${state.league.id}/${t.key}`); },
     "aria-current": state.route.tab === t.key ? "page" : null,
-  }, t.label)));
+  }, t.label));
 
-  invite.hidden = false;
-  invite.onclick = () => {
+  render(tabsBox, schede());
+  render($("#drawer-tabs"), schede());
+
+  const apriInvito = () => {
+    chiudiMenu();
     import("./views/invite.js").then((m) => m.showInvite(state.league));
   };
+
+  render($("#drawer-foot"),
+    el("button.btn.btn-sm", { type: "button", onclick: apriInvito }, "Invita"),
+    el("button.btn.btn-sm.btn-ghost", {
+      type: "button", onclick: apriProfilo(state.league.id),
+    }, "Profilo e altre leghe"),
+  );
+
+  invite.hidden = false;
+  invite.onclick = apriInvito;
   me.textContent = state.store.me.name || "";
   me.title = "Profilo e altre leghe";
   me.onclick = apriProfilo(state.league.id);
@@ -405,6 +473,7 @@ async function onRouteChange() {
 async function main() {
   // Prima di tutto: l'evento di installazione arriva presto e una volta sola.
   initInstall();
+  initMenu();
   try {
     state.store = await getStore();
   } catch (err) {

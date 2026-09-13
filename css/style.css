@@ -519,3 +519,85 @@ tbody tr.is-me { background: rgba(224,168,58,.07); }
   padding: clamp(.6rem, 2vw, 1rem);
 }
 .tut-palco > * { margin: 0; }
+
+/* ------------------------- menu laterale (mobile) ----------------------- */
+/*
+   Sotto gli 880px le sei schede non stanno in orizzontale: restavano
+   mezze fuori, e le ultime tre si raggiungevano solo con uno scorrimento
+   laterale che non si vedeva. Li' la barra diventa un cassetto.
+
+   Il cassetto resta sempre nel DOM (niente [hidden]) cosi' lo scorrimento
+   si puo' animare; a tenerlo fuori campo e' la trasformazione, e
+   `visibility` impedisce di raggiungerlo col tasto Tab da chiuso.
+*/
+
+.hamburger {
+  display: grid; gap: 4px; place-content: center;
+  width: 38px; height: 38px; flex: 0 0 auto;
+  background: transparent; border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.hamburger span {
+  display: block; width: 17px; height: 2px; border-radius: 2px;
+  background: var(--text-dim); transition: background .15s;
+}
+.hamburger:hover span { background: var(--text); }
+.hamburger[hidden] { display: none; }
+
+.scrim {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(2px);
+  opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s;
+}
+body.menu-aperto .scrim { opacity: 1; visibility: visible; }
+
+.drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 51;
+  width: min(80vw, 290px);
+  display: flex; flex-direction: column;
+  background: var(--bg-2); border-right: 1px solid var(--line);
+  transform: translateX(-100%); visibility: hidden;
+  transition: transform .22s ease, visibility .22s;
+  /* Sui telefoni con la tacca il bordo sinistro e' sotto la cornice. */
+  padding-left: env(safe-area-inset-left, 0);
+}
+body.menu-aperto .drawer { transform: none; visibility: visible; }
+
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .9rem 1rem; border-bottom: 1px solid var(--line-soft);
+}
+.drawer-head strong {
+  font-family: var(--display); font-size: 1rem; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.drawer-nav {
+  display: grid; gap: .15rem; padding: .6rem; overflow-y: auto; flex: 1;
+  /* Senza, la griglia distribuisce le righe su tutta l'altezza e le sei
+     voci finiscono sparse dall'alto in basso come un menu di un DVD. */
+  align-content: start;
+}
+.drawer-nav .tab {
+  text-align: left; width: 100%; padding: .7rem .8rem; font-size: .95rem;
+}
+
+.drawer-foot {
+  display: grid; gap: .4rem; padding: .6rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (max-width: 880px) {
+  .topbar .tabs { display: none; }
+  #btn-invite { display: none; }
+}
+@media (min-width: 881px) {
+  /* Sopra la soglia il cassetto non serve: resta chiuso qualunque cosa. */
+  .hamburger { display: none; }
+  body.menu-aperto .drawer,
+  body.menu-aperto .scrim { transform: translateX(-100%); visibility: hidden; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .scrim { transition: none; }
+}

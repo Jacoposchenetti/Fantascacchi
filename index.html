@@ -23,6 +23,10 @@
 <body>
 
 <header class="topbar" id="topbar" hidden>
+  <button class="hamburger" id="btn-menu" hidden type="button"
+          aria-label="Apri il menu" aria-expanded="false" aria-controls="drawer">
+    <span></span><span></span><span></span>
+  </button>
   <a class="brand" href="#/">♞ <span>Fantascacchi</span></a>
   <nav class="tabs" id="tabs"></nav>
   <div class="topbar-right">
@@ -30,6 +34,19 @@
     <span class="me" id="me"></span>
   </div>
 </header>
+
+<!-- Menu laterale: su schermo stretto le sei schede non ci stanno in
+     orizzontale e le ultime restavano fuori, raggiungibili solo con uno
+     scorrimento che non si vedeva. -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Sezioni della lega">
+  <div class="drawer-head">
+    <strong id="drawer-title">Lega</strong>
+    <button class="pc-close" id="btn-menu-close" type="button" aria-label="Chiudi il menu">✕</button>
+  </div>
+  <nav class="drawer-nav" id="drawer-tabs"></nav>
+  <div class="drawer-foot" id="drawer-foot"></div>
+</aside>
 
 <div id="avvisi" class="avvisi"></div>
 
