@@ -10,3 +10,6 @@ functions/node_modules/
 # Python
 __pycache__/
 *.pyc
+
+# Analisi: i CSV simulati si rigenerano, non si versionano
+tools/analisi/*.csv
