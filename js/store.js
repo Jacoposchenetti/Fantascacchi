@@ -228,13 +228,13 @@ function localAdapter() {
     /* --------------------------- buste chiuse -------------------------- */
 
     watchMyBids(id, uid, cb) {
-      return watch(LS_BIDS(id), (v) => cb((v || {})[uid] || {}));
+      return watch(LS_BIDS(id), (v) => cb((v || {})[uid]?.bids || {}));
     },
 
     async setBids(id, uid, bids) {
       const key = LS_BIDS(id);
       const all = readJSON(key, {});
-      all[uid] = bids;
+      all[uid] = { bids, at: Date.now() };
       writeJSON(key, all);
       broadcast(key);
     },

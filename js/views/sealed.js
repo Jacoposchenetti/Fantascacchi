@@ -416,10 +416,35 @@ async function provaARisolvere(ctx) {
   if (risolvendo) return;
   risolvendo = true;
   try {
-    const tutte = await ctx.store.readAllBids(ctx.league.id);
+    const grezze = await ctx.store.readAllBids(ctx.league.id);
+
+    // Solo le buste mandate DOPO l'ultima risoluzione contano per questo giro.
+    //
+    // Serve perche' le altrui non si possono cancellare dal browser (le
+    // regole lo vietano, giustamente) e finora restavano li'. Al giro dopo
+    // venivano riconteggiate: chi non aveva offerto risultava comunque
+    // partecipante, il contatore dei giri saltati restava a zero e la rosa
+    // d'ufficio non scattava mai. L'asta non finiva piu'.
+    //
+    // A cancellarle davvero e' la Cloud Function `busteRipulite`; questo
+    // filtro e' la cintura di sicurezza, e rimette in moto anche le leghe
+    // che si erano gia' impantanate.
+    const daQuando = ctx.league.sealed?.risoltoIl || 0;
+    const tutte = {};
+    for (const [uid, v] of Object.entries(grezze)) {
+      // Forma vecchia (offerte senza data): si accetta, e' roba pre-aggiornamento.
+      const bids = v && typeof v === "object" && "bids" in v ? v.bids : v;
+      const at = v && typeof v === "object" && "at" in v ? v.at : 0;
+      // Confronto stretto: una busta arrivata nell'istante esatto della
+      // risoluzione vale per il giro NUOVO. Nel dubbio si conta come
+      // partecipazione: sbagliare a punire qualcuno riempiendogli la rosa
+      // d'ufficio e' molto peggio che lasciarlo passare un giro in piu'.
+      if (at && at < daQuando) continue;              // busta di un giro passato
+      if (bids && Object.keys(bids).length) tutte[uid] = bids;
+    }
+
     const { assegnazioni } = risolvi(ctx.league, tutte);
-    const chiHaOfferto = new Set(
-      Object.entries(tutte).filter(([, m]) => Object.keys(m || {}).length).map(([u]) => u));
+    const chiHaOfferto = new Set(Object.keys(tutte));
     // Dal piu' economico: chi salta i giri viene riempito con quelli, non
     // con i fuoriclasse, altrimenti non partecipare converrebbe.
     const liberiEconomici = catalogList(ctx.catalog)

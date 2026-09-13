@@ -309,17 +309,36 @@ export async function firebaseAdapter() {
     /**
      * Tutte le offerte. Le regole la consentono solo a scadenza passata:
      * prima di allora questa chiamata fallisce, ed e' il comportamento giusto.
+     *
+     * Torna anche il MOMENTO in cui sono state mandate: serve a riconoscere
+     * quelle rimaste li' da un giro precedente, che altrimenti verrebbero
+     * contate come se fossero di adesso.
      */
     async readAllBids(id) {
       const snap = await getDocs(bidColl(id));
       const out = {};
-      snap.docs.forEach((d) => { out[d.id] = d.data().bids || {}; });
+      snap.docs.forEach((d) => {
+        const v = d.data();
+        out[d.id] = { bids: v.bids || {}, at: v.at || 0 };
+      });
       return out;
     },
 
-    async clearBids(id) {
-      const snap = await getDocs(bidColl(id));
-      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    /**
+     * Ripulisce le proprie offerte a fine giro. Le altrui NON puo' toccarle:
+     * le regole lasciano scrivere in bids/{uid} solo al diretto interessato.
+     * A cancellare quelle di tutti e' la Cloud Function `busteRipulite`, che
+     * gira con l'Admin SDK quando il giro avanza.
+     *
+     * Prima questo metodo provava a cancellarle tutte e falliva sul primo
+     * documento altrui. L'errore veniva inghiottito, le buste restavano, e
+     * al giro dopo chi non aveva offerto risultava comunque partecipante:
+     * il contatore dei giri saltati non saliva mai e la rosa d'ufficio non
+     * scattava. L'asta non finiva piu'.
+     */
+    async clearBids(id, uid) {
+      if (!uid && !me) return;
+      await deleteDoc(bidRef(id, uid || me.uid));
     },
 
     async exportLeague(id) {

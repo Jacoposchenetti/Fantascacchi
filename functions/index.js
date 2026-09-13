@@ -173,6 +173,47 @@ export function cambiamenti(prima, dopo, id) {
   return out.filter((a) => a.a.length);
 }
 
+/* ====================== pulizia delle buste chiuse ==================== */
+
+/**
+ * A giro concluso, via le offerte.
+ *
+ * Non lo puo' fare il browser: le regole lasciano scrivere in bids/{uid}
+ * solo al diretto interessato, quindi chi risolve il giro riesce a
+ * cancellare le proprie e basta. Le altrui restavano li', e al giro dopo
+ * venivano ricontate come se fossero appena arrivate: chi non offriva
+ * risultava comunque partecipante, il contatore dei giri saltati non
+ * saliva mai, la rosa d'ufficio non scattava e l'asta non finiva piu'.
+ *
+ * Sta in una funzione sua e non dentro `legaCambiata` di proposito: se la
+ * logica delle notifiche si rompe, le buste devono sparire lo stesso.
+ */
+export const busteRipulite = onDocumentWritten("leagues/{leagueId}", async (event) => {
+  const prima = event.data?.before?.data();
+  const dopo = event.data?.after?.data();
+  if (!prima || !dopo) return;
+  if ((dopo.auctionMode || "live") !== "sealed") return;
+
+  const giroNuovo = (dopo.sealed?.giro || 1) > (prima.sealed?.giro || 1);
+  const astaFinita = prima.phase !== dopo.phase && dopo.phase === "season";
+  if (!giroNuovo && !astaFinita) return;
+
+  const db = getFirestore();
+  const id = event.params.leagueId;
+  try {
+    const coll = db.collection("leagues").doc(id).collection("bids");
+    const snap = await coll.get();
+    if (snap.empty) return;
+    const lotto = db.batch();
+    snap.docs.forEach((d) => lotto.delete(d.ref));
+    await lotto.commit();
+    console.log(`lega ${id}: ${snap.size} buste ripulite `
+      + `(${astaFinita ? "asta conclusa" : `giro ${dopo.sealed?.giro}`})`);
+  } catch (e) {
+    console.error(`lega ${id}: pulizia buste non riuscita`, e?.message);
+  }
+});
+
 /* ======================== pulizia dopo l'eliminazione ================== */
 
 /**
