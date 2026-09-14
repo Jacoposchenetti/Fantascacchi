@@ -127,6 +127,30 @@ Puoi offrire su più giocatori di quanti potresti permetterti — è normale
 puntare sapendo di non prenderli tutti — perché il budget viene rispettato
 durante l'assegnazione: le offerte che non ci stanno vengono scartate.
 
+### Dare un appuntamento all'asta live
+
+L'asta live vuole tutti davanti allo schermo, quindi si può **programmarla**:
+l'admin sceglie data e ora nella sala d'attesa e parte da sola, anche se in quel
+momento non ha aperto l'app nessuno. Chi ha le notifiche attive viene avvisato
+**dieci minuti prima**.
+
+A farla partire sono due strade che convergono. Chi ha l'app aperta la avvia al
+secondo esatto; la Cloud Function `avvioProgrammato` è la rete per quando non
+c'è nessuno. A decidere chi arriva primo è la transazione, quindi l'asta parte
+una volta sola.
+
+Quella funzione gira **ogni minuto** e non ogni quarto d'ora come `promemoria`:
+a un'asta live la gente si presenta all'ora detta, e cominciare con dodici
+minuti di ritardo sarebbe come non averla programmata. Può permetterselo perché
+**non scorre tutte le leghe**: interroga solo quelle con un appuntamento in
+scadenza, e `scheduledStart` torna a 0 alla partenza. Quasi sempre la risposta è
+vuota e il minuto costa una lettura. Una scansione completa al minuto sarebbe
+costata più letture al giorno di quante ne regali il piano gratuito.
+
+La partenza è una funzione sola, `avviaAstaLive` in `js/league.js`, usata sia
+dal browser sia dalla funzione: due copie sarebbero due aste leggermente
+diverse.
+
 ### Se qualcuno non offre
 
 Salta il giro: non prende niente e tiene i suoi crediti. Ma se **salta due

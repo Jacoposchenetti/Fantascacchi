@@ -50,6 +50,8 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
       endsAt: 0, turnIdx: 0, turnEndsAt: 0,
     },
     customPlayers: {},
+    // Orario a cui l'asta live parte da sola (ms). 0 = nessun appuntamento.
+    scheduledStart: 0,
     // "live" = asta a chiamata col cronometro, tutti collegati insieme.
     // "sealed" = buste chiuse, offerte segrete entro una scadenza.
     auctionMode: auctionMode || "live",

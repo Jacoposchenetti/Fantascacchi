@@ -7,8 +7,8 @@
    Ora l'asta parte solo quando l'admin la fa partire.
    --------------------------------------------------------------- */
 
-import { el, copy, confirmDialog } from "../ui.js";
-import { members, isOnline, inviteLink, nextTurnDeadline } from "../league.js";
+import { el, copy, confirmDialog, toast } from "../ui.js";
+import { members, isOnline, inviteLink, avviaAstaLive } from "../league.js";
 import { primeAudio } from "../alerts.js";
 import { regoleBusteChiuse } from "../sealed.js";
 import { ordineBase, prossimaScadenza as prossimaScadenzaDraft } from "../draft.js";
@@ -44,6 +44,8 @@ export default function lobbyView(ctx) {
             "L'asta comincia quando ", el("strong", league.members[league.adminUid]?.name || "chi gestisce la lega"),
             " dà il via. Resta su questa pagina."),
     ),
+
+    programmazione(ctx),
 
     el("section",
       el("div.section-head",
@@ -144,11 +146,134 @@ async function startAuction(ctx) {
     if (lg.auctionMode === "sealed") {
       lg.sealed = { ...(lg.sealed || {}), giro: lg.sealed?.giro || 1,
         scadenza: Date.now() + (lg.sealedHours || 12) * 3600 * 1000 };
-    } else {
-      lg.auction = { ...lg.auction, status: "idle", turnIdx: 0, turnEndsAt: nextTurnDeadline(lg) };
+      return lg;
     }
+    return avviaAstaLive(lg);
+  });
+}
+
+/* --------------------------- asta programmata -------------------------- */
+
+let battito = null;
+
+/** Riquadro dell'appuntamento: solo per l'asta live, dove serve esserci. */
+function programmazione(ctx) {
+  const { league } = ctx;
+  if ((league.auctionMode || "live") !== "live") return null;
+
+  const quando = league.scheduledStart || 0;
+  const manca = quando - Date.now();
+
+  // Un battito al secondo per il conto alla rovescia. Quando l'orario
+  // arriva fa partire l'asta chi sta guardando: la Cloud Function e' la
+  // rete di sicurezza per quando non c'e' nessuno, ma se qualcuno c'e'
+  // deve partire al secondo giusto, non al minuto dopo.
+  if (battito) { clearInterval(battito); battito = null; }
+  if (quando > 0) {
+    battito = setInterval(() => {
+      if (Date.now() >= quando) { clearInterval(battito); battito = null; }
+      ctx.refresh();
+    }, 1000);
+  }
+
+  if (quando > 0 && manca <= 0) partiOra(ctx);
+
+  if (!quando) {
+    if (!ctx.isAdmin) return null;
+    return el("div.card.stack-s",
+      el("strong", "Oppure dai un appuntamento"),
+      el("p.small.mute-2", { style: "margin:0" },
+        "L'asta parte da sola all'ora che scegli, anche se in quel momento "
+        + "non ha aperto l'app nessuno. Chi ha le notifiche attive viene "
+        + "avvisato dieci minuti prima."),
+      el("form.row", { style: "gap:.5rem", onsubmit: (e) => programma(ctx, e) },
+        el("input", {
+          type: "datetime-local", name: "quando", required: true,
+          min: perInput(Date.now() + 5 * 60 * 1000),
+          style: "flex:1;min-width:12rem",
+        }),
+        el("button.btn.btn-sm", { type: "submit" }, "Programma"),
+      ),
+    );
+  }
+
+  return el("div.card.card-hi.stack-s",
+    el("div.spread",
+      el("div",
+        el("strong", "L'asta parte da sola"),
+        el("div.small.muted", dataOra(quando))),
+      el("span.badge.badge-gold", manca > 0 ? mancaA(manca) : "adesso")),
+    ctx.isAdmin && el("div.row",
+      el("button.btn.btn-sm.btn-ghost", { onclick: () => annulla(ctx) },
+        "Annulla l'appuntamento"),
+    ),
+  );
+}
+
+async function programma(ctx, ev) {
+  ev.preventDefault();
+  const v = String(new FormData(ev.target).get("quando") || "");
+  const quando = new Date(v).getTime();
+  if (!quando || Number.isNaN(quando)) { toast("Data non valida", "err"); return; }
+  if (quando <= Date.now()) { toast("Scegli un orario futuro", "err"); return; }
+  await ctx.mutate((lg) => {
+    if (lg.phase !== "lobby") return null;
+    lg.scheduledStart = quando;
     return lg;
   });
+  toast(`L'asta partirà ${dataOra(quando)}`, "ok");
+}
+
+async function annulla(ctx) {
+  await ctx.mutate((lg) => {
+    if (!lg.scheduledStart) return null;
+    lg.scheduledStart = 0;
+    return lg;
+  });
+  toast("Appuntamento annullato");
+}
+
+// Chi guarda fa partire l'asta appena scatta l'ora. La transazione decide
+// chi arriva primo: gli altri trovano la fase gia' cambiata e si fermano.
+let partenzaInCorso = false;
+async function partiOra(ctx) {
+  if (partenzaInCorso) return;
+  partenzaInCorso = true;
+  try {
+    await ctx.store.updateLeague(ctx.league.id, (lg) => {
+      if (!lg.scheduledStart || Date.now() < lg.scheduledStart) return null;
+      return avviaAstaLive(lg);
+    });
+  } catch { /* ci pensa la Cloud Function */ } finally {
+    partenzaInCorso = false;
+  }
+}
+
+const due = (n) => String(n).padStart(2, "0");
+
+/** Formato accettato da <input type="datetime-local">, in ora locale. */
+function perInput(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}`
+    + `T${due(d.getHours())}:${due(d.getMinutes())}`;
+}
+
+function dataOra(ms) {
+  return new Date(ms).toLocaleString("it-IT",
+    { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
+function mancaA(ms) {
+  // Sotto il minuto va detto a parole: "fra 1 minuto" quando ne mancano
+  // venti secondi e' una bugia piccola ma si nota, perche' il numero resta
+  // fermo mentre il tempo scorre.
+  if (ms < 60000) return "a momenti";
+  const min = Math.ceil(ms / 60000);
+  if (min < 60) return `fra ${min} ${min === 1 ? "minuto" : "minuti"}`;
+  const ore = Math.floor(min / 60);
+  if (ore < 24) return `fra ${ore}h ${due(min % 60)}m`;
+  const giorni = Math.round(ore / 24);
+  return `fra ${giorni} ${giorni === 1 ? "giorno" : "giorni"}`;
 }
 
 async function startDraft(ctx) {

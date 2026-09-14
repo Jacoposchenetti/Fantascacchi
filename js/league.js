@@ -170,6 +170,25 @@ export function nextTurnDeadline(league, now = Date.now()) {
   return now + (league?.turnSeconds || 60) * 1000;
 }
 
+/**
+ * Fa partire l'asta live. Restituisce null se non c'e' niente da fare,
+ * cosi' si puo' passare dritta a `updateLeague` come mutatore.
+ *
+ * Sta qui e non nella vista perche' la usano in due: il browser, quando
+ * l'admin preme il pulsante o scade l'orario mentre qualcuno guarda, e la
+ * Cloud Function che fa partire le aste programmate. Due copie della
+ * stessa partenza sarebbero due aste leggermente diverse.
+ */
+export function avviaAstaLive(lg) {
+  if (!lg || lg.phase !== "lobby") return null;
+  lg.phase = "auction";
+  lg.scheduledStart = 0;          // programmazione consumata
+  lg.auction = {
+    ...lg.auction, status: "idle", turnIdx: 0, turnEndsAt: nextTurnDeadline(lg),
+  };
+  return lg;
+}
+
 /** Link d'invito assoluto, funziona anche in sottocartella su GitHub Pages. */
 export function inviteLink(leagueId) {
   const base = location.href.split("#")[0];

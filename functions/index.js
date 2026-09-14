@@ -29,6 +29,7 @@ import { invia } from "./push.js";
 // (tools/sync_condiviso.mjs). Riscriverla a mano significherebbe due
 // implementazioni che prima o poi assegnano giocatori diversi.
 import { risolvi, applica, DEFAULT_ORE } from "./condiviso/sealed.js";
+import { avviaAstaLive, members } from "./condiviso/league.js";
 import {
   uids, nome, nominator, chiSceglie, daCompletare,
   numeroGiornata, slotDocId, nextTuesday,
@@ -450,3 +451,87 @@ export async function risolviBusteScadute(db, lg, id, now) {
   // scrittura appena fatta.
   return chiuso;
 }
+
+
+/* ===================== aste live con appuntamento ===================== */
+
+const PREAVVISO = 10 * 60 * 1000;
+
+/**
+ * Fa partire le aste live programmate, e avvisa dieci minuti prima.
+ *
+ * Gira ogni minuto e non ogni quarto d'ora come `promemoria`: a un'asta
+ * live la gente si presenta all'ora detta, e cominciare con dodici minuti
+ * di ritardo sarebbe come non averla programmata.
+ *
+ * Puo' permetterselo perche' NON scorre tutte le leghe: interroga solo
+ * quelle con un appuntamento in scadenza. `scheduledStart` torna a 0 alla
+ * partenza, quindi quasi sempre la risposta e' vuota e il minuto costa una
+ * lettura. Una scansione completa al minuto, invece, sarebbe costata piu'
+ * letture al giorno di quante ne regali il piano gratuito.
+ *
+ * Chi ha l'app aperta fa partire l'asta da solo al secondo esatto (vedi
+ * `partiOra` in views/lobby.js); questa e' la rete per quando non c'e'
+ * nessuno. A decidere chi arriva primo e' la transazione.
+ */
+export const avvioProgrammato = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "Europe/Rome", secrets: [VAPID_PRIVATE] },
+  async () => {
+    const db = getFirestore();
+    const now = Date.now();
+
+    const snap = await db.collection("leagues")
+      .where("scheduledStart", ">", 0)
+      .where("scheduledStart", "<=", now + PREAVVISO)
+      .get();
+    if (snap.empty) return;
+
+    for (const doc of snap.docs) {
+      const lg = doc.data();
+      const id = doc.id;
+      const ref = doc.ref;
+
+      // L'asta e' gia' partita (o e' cambiata modalita'): l'appuntamento
+      // non ha piu' senso e va tolto, altrimenti resta nella query per
+      // sempre e la si rilegge ogni minuto.
+      if (lg.phase !== "lobby" || (lg.auctionMode || "live") !== "live") {
+        await ref.update({ scheduledStart: 0 }).catch(() => {});
+        continue;
+      }
+
+      if (lg.scheduledStart <= now) {
+        let partita = false;
+        await db.runTransaction(async (tx) => {
+          partita = false;
+          const fresco = (await tx.get(ref)).data();
+          if (!fresco?.scheduledStart || Date.now() < fresco.scheduledStart) return;
+          const next = avviaAstaLive(fresco);
+          if (!next) return;
+          tx.set(ref, next);
+          partita = true;
+        });
+        if (partita) {
+          console.log(`lega ${id}: asta live partita all'orario programmato`);
+          // L'avviso "l'asta e' cominciata" lo manda gia' `legaCambiata`,
+          // che scatta su questa stessa scrittura.
+        }
+        continue;
+      }
+
+      // Nella finestra di preavviso: si avvisa una volta sola.
+      const segna = db.collection("promemoria").doc(id);
+      const fatti = (await segna.get()).data() || {};
+      if (fatti.avvisoAvvio === lg.scheduledStart) continue;
+
+      const minuti = Math.max(1, Math.round((lg.scheduledStart - now) / 60000));
+      await invia(members(lg).map((m) => m.uid), {
+        titolo: lg.name || "Fantascacchi",
+        corpo: `L'asta comincia fra ${minuti} minuti. Tieniti pronto: `
+          + "i turni di chiamata scorrono a tempo.",
+        tag: `avvio-${id}`,
+        url: `#/l/${id}/asta`,
+      }, VAPID_PRIVATE.value());
+      await segna.set({ avvisoAvvio: lg.scheduledStart }, { merge: true });
+    }
+  },
+);
