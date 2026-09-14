@@ -153,19 +153,40 @@ export function lineupsFor(matchdays, n) {
  * scelta di non giocare, e` semplicemente non aver cambiato l'ordine
  * ovvio. Meglio schierare il meglio che ha e lasciarlo giocare.
  */
+/**
+ * Il vice di una formazione: il piu' forte per Elo fra i titolari, escluso
+ * il capitano.
+ *
+ * Il rating e non il prezzo pagato, perche' sono due cose diverse: il
+ * prezzo dice quanto e' costato all'asta — e li' pesa anche quanto spesso
+ * si presenta — mentre la fascia serve nella giornata in cui il vice
+ * scende in campo per davvero. In quel momento conta solo quanto e' forte.
+ *
+ * @param rosa      voci di `rosterOf`, con `.player.rating`
+ * @param starters  gli id dei titolari
+ * @param captain   l'id del capitano, che non puo' fare anche il vice
+ */
+export function scegliVice(rosa, starters, captain) {
+  const inCampo = new Set(starters || []);
+  const candidati = (rosa || [])
+    .filter((r) => inCampo.has(r.playerId) && r.playerId !== captain)
+    .sort((a, b) => (b.player?.rating || 0) - (a.player?.rating || 0));
+  return candidati[0]?.playerId || null;
+}
+
 export function formazionePredefinita(league, catalog, uid) {
   if (!league || !catalog) return null;
   const rosa = rosterOf(league, catalog, uid);     // gia' dal piu' caro
   if (!rosa.length) return null;
   const ids = rosa.map((r) => r.playerId);
   const quanti = league.lineupSize || ids.length;
+  const starters = ids.slice(0, quanti);
+  const captain = starters[0] || null;
   return {
-    starters: ids.slice(0, quanti),
+    starters,
     bench: ids.slice(quanti),
-    captain: ids[0] || null,
-    // Il secondo piu' pagato fa il vice: se il capitano non si presenta,
-    // la fascia va a quello che viene subito dopo per valore.
-    vice: ids[1] || null,
+    captain,
+    vice: scegliVice(rosa, starters, captain),
     predefinita: true,
   };
 }

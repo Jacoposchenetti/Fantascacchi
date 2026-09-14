@@ -324,8 +324,13 @@ I bonus piazzamento **non si sommano**: vale solo il più alto.
 Il **vice capitano** esiste perché senza di lui nominare capitano un fuoriclasse
 assenteista era quasi solo un modo di buttare via il bonus. Così resta una
 scommessa — il vice segna meno del capitano che speravi — ma non un tutto o
-niente. Lo si sceglie nella formazione, accanto al capitano, e la formazione
-predefinita mette capitano il più pagato e vice il secondo.
+niente. Lo si sceglie nella formazione, accanto al capitano.
+
+La formazione predefinita mette **capitano il più pagato** e **vice il più
+forte per rating** fra gli altri titolari. I due criteri sono diversi apposta:
+il prezzo dice quanto è costato all'asta, e lì pesa anche quanto spesso si
+presenta; la fascia di vice invece serve nella giornata in cui scende in campo
+davvero, e in quel momento conta solo quanto è forte.
 
 ### Impresa (batte i più forti)
 

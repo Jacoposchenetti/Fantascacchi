@@ -12,7 +12,7 @@
 import { el, toast, flag, presenceClass } from "../ui.js";
 import { rosterOf } from "../league.js";
 import { showPlayer } from "./player.js";
-import { effectiveLineup, lineupsFor, slotDocId, dataLunga, quando } from "../season.js";
+import { effectiveLineup, lineupsFor, scegliVice, slotDocId, dataLunga, quando } from "../season.js";
 
 const drafts = new Map();   // n giornata -> {starters, bench, captain}
 
@@ -299,8 +299,9 @@ function normalize(saved, mine, lineupSize) {
              captain: saved.captain || null, vice: saved.vice || null };
   }
   const starters = ids.slice(0, lineupSize);
+  const captain = starters[0] || null;
   return { starters, bench: ids.slice(lineupSize),
-           captain: starters[0] || null, vice: starters[1] || null };
+           captain, vice: scegliVice(mine, starters, captain) };
 }
 
 function oraLocale(ms) {
