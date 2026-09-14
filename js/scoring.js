@@ -70,6 +70,23 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
   const starters = lineup?.starters || [];
   const bench = lineup?.bench || [];
   const captain = lineup?.captain || null;
+  const vice = lineup?.vice || null;
+
+  /**
+   * Chi porta davvero la fascia: il capitano se e' sceso in campo,
+   * altrimenti il vice — purche' sia un titolare e abbia giocato pure lui.
+   *
+   * Va deciso PRIMA del giro sui titolari: il vice puo' venire prima del
+   * capitano nell'elenco, e ci si ritroverebbe a raddoppiarlo senza ancora
+   * sapere se il capitano c'era.
+   *
+   * Chi entra dalla panchina non eredita mai niente: la fascia si assegna
+   * prima del torneo, non a risultati visti.
+   */
+  const haGiocato = (pid) => Boolean(pid && results.get(pid)?.played);
+  const conFascia = haGiocato(captain) ? captain
+    : (vice && starters.includes(vice) && haGiocato(vice)) ? vice
+    : null;
 
   const usedBench = new Set();
   const rows = [];
@@ -93,9 +110,11 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
       }
     }
 
-    // Il bonus capitano si perde se il capitano non ha giocato.
     const isCaptain = pid === captain;
-    const captainApplies = isCaptain && !subbedFrom && !score.absent;
+    const isVice = pid === vice;
+    // `conFascia` e' gia' qualcuno che ha giocato: i due controlli in coda
+    // sono cintura e bretelle, non cambiano l'esito.
+    const captainApplies = pid === conFascia && !subbedFrom && !score.absent;
     const total = captainApplies ? round1(score.total * rules.captainMultiplier) : score.total;
 
     rows.push({
@@ -103,6 +122,10 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
       playerId: effective,
       subbedFrom,
       isCaptain,
+      isVice,
+      // Vero quando la fascia si e' spostata sul vice: serve a spiegarlo
+      // nel dettaglio, altrimenti uno guarda i punti e non capisce.
+      viceSubentrato: captainApplies && isVice,
       captainApplied: captainApplies,
       absent: score.absent,
       raw: raw,

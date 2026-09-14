@@ -193,7 +193,12 @@ function showDetail(ctx, row, slot) {
         el("div.spread",
           el("div",
             el("strong", p?.name || r.playerId),
-            r.captainApplied && el("span.badge.badge-gold", { style: "margin-left:.4rem" }, "C ×2"),
+            r.captainApplied && el("span.badge.badge-gold", { style: "margin-left:.4rem" },
+              r.viceSubentrato ? "V ×2" : "C ×2"),
+            // Senza spiegazione uno vede il raddoppio su chi non aveva
+            // nominato capitano e pensa a un errore.
+            r.viceSubentrato && el("div.small", { style: "color:var(--gold)" },
+              "il capitano non ha giocato: la fascia è passata al vice"),
             out && el("div.small.mute-2", `entrato per ${out.name}`)),
           el("strong.mono", { class: ptsClass(r.total) }, r.total.toFixed(1)),
         ),

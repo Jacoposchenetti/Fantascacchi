@@ -55,7 +55,9 @@ export default function lineupView(ctx) {
       setDraft({
         starters: starters.filter((x) => x !== pid),
         bench: [...bench, pid],
+        // Le fasce valgono solo per i titolari: chi va in panchina le perde.
         captain: draft.captain === pid ? null : draft.captain,
+        vice: draft.vice === pid ? null : draft.vice,
       });
     } else {
       if (starters.length >= league.lineupSize) {
@@ -66,6 +68,7 @@ export default function lineupView(ctx) {
         starters: [...starters, pid],
         bench: bench.filter((x) => x !== pid),
         captain: draft.captain,
+        vice: draft.vice,
       });
     }
   }
@@ -87,7 +90,7 @@ export default function lineupView(ctx) {
     if (!draft.captain) { toast("Scegli il capitano", "err"); return; }
     try {
       await ctx.store.setLineup(league.id, slotDocId(slot.n), uid,
-        { starters, bench, captain: draft.captain });
+        { starters, bench, captain: draft.captain, vice: draft.vice || null });
       toast("Formazione salvata", "ok");
     } catch (err) {
       toast(err.message || "Salvataggio non riuscito", "err");
@@ -96,6 +99,7 @@ export default function lineupView(ctx) {
 
   const changed = !eff
     || eff.captain !== draft.captain
+    || (eff.vice || null) !== (draft.vice || null)
     || (eff.starters || []).join() !== starters.join()
     || (eff.bench || []).join() !== bench.join();
   const dirty = changed || inherited;
@@ -131,7 +135,10 @@ export default function lineupView(ctx) {
       el("div.small.muted",
         need > 0 ? `Mancano ${need} titolari.`
         : need < 0 ? `Hai ${-need} titolari di troppo.`
-        : draft.captain ? "Formazione completa." : "Manca il capitano."),
+        : !draft.captain ? "Manca il capitano."
+        : draft.vice ? "Formazione completa."
+        : "Formazione completa. Senza vice, se il capitano non gioca il "
+          + "raddoppio si perde."),
     ),
 
     section(`Titolari (${starters.length}/${league.lineupSize})`,
@@ -139,8 +146,14 @@ export default function lineupView(ctx) {
         ? el("div.plist", starters.map((pid) => row(ctx, byId.get(pid), {
             picked: true,
             captain: draft.captain === pid,
+            vice: draft.vice === pid,
             onToggle: () => toggle(pid),
-            onCaptain: () => setDraft({ ...draft, starters, bench, captain: pid }),
+            // Nessuno puo' portare due fasce: nominando l'uno si libera l'altro.
+            onCaptain: () => setDraft({ ...draft, starters, bench,
+              captain: pid, vice: draft.vice === pid ? null : draft.vice }),
+            onVice: () => setDraft({ ...draft, starters, bench,
+              vice: draft.vice === pid ? null : pid,
+              captain: draft.captain === pid ? null : draft.captain }),
           })))
         : el("div.card.card-tight.center.mute-2.small", "Scegli i titolari dalla panchina"),
     ),
@@ -210,7 +223,8 @@ function ultimaFormazione(ctx, mine, plan) {
           el("div.pav", { style: "display:grid;place-items:center" }, "♟"),
           el("div.pmain", el("div.pname",
             el("span", p.name),
-            lu.captain === pid && el("span.badge.badge-gold", "C"))),
+            lu.captain === pid && el("span.badge.badge-gold", "C"),
+            lu.vice === pid && el("span.badge", "V"))),
           el("div.pright.small.mute-2", String(p.rating)),
         );
       })),
@@ -234,7 +248,8 @@ function row(ctx, p, o) {
         el("div.pname",
           p.title && el("span.title-tag", { class: p.title.toLowerCase() }, p.title),
           el("span", p.name),
-          o.captain && el("span.badge.badge-gold", "C")),
+          o.captain && el("span.badge.badge-gold", "C"),
+          o.vice && el("span.badge", "V")),
         el("div.pmeta",
           flag(p.country) && el("span", flag(p.country)),
           el("span", `${p.rating} blitz`),
@@ -256,8 +271,16 @@ function row(ctx, p, o) {
       ),
       o.picked && el("button.btn.btn-sm", {
         type: "button", onclick: o.onCaptain, disabled: o.captain,
-        "aria-label": "Nomina capitano",
+        "aria-label": o.captain ? "È il capitano" : "Nomina capitano",
+        title: "Capitano: raddoppia i punti, ma solo se gioca",
       }, o.captain ? "Capitano" : "C"),
+      // Il vice raccoglie la fascia se il capitano non si presenta. Sul
+      // capitano stesso non ha senso mostrarlo: sarebbe un doppione.
+      o.picked && !o.captain && el("button.btn.btn-sm.btn-ghost", {
+        type: "button", onclick: o.onVice,
+        "aria-label": o.vice ? "Togli la fascia di vice" : "Nomina vice capitano",
+        title: "Vice: raddoppia al posto del capitano se il capitano non gioca",
+      }, o.vice ? "Vice" : "V"),
       el("button.btn.btn-sm", {
         type: "button", onclick: o.onToggle,
       }, o.picked ? "Panchina" : "Schiera"),
@@ -272,10 +295,12 @@ function normalize(saved, mine, lineupSize) {
     const starters = saved.starters.filter((id) => ids.includes(id));
     const bench = (saved.bench || []).filter((id) => ids.includes(id) && !starters.includes(id));
     const rest = ids.filter((id) => !starters.includes(id) && !bench.includes(id));
-    return { starters, bench: [...bench, ...rest], captain: saved.captain || null };
+    return { starters, bench: [...bench, ...rest],
+             captain: saved.captain || null, vice: saved.vice || null };
   }
   const starters = ids.slice(0, lineupSize);
-  return { starters, bench: ids.slice(lineupSize), captain: starters[0] || null };
+  return { starters, bench: ids.slice(lineupSize),
+           captain: starters[0] || null, vice: starters[1] || null };
 }
 
 function oraLocale(ms) {

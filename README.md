@@ -294,7 +294,10 @@ Ogni giornata, per ogni tuo titolare che ha giocato il torneo:
    **altro partecipante**: `+3` se lo batti, `−2` se perdi, `0` in caso di patta.
    Fra due tuoi non conta: è una partita di giro.
 6. **Capitano** — la somma di tutto quanto sopra `× 2`, ma **solo se il capitano
-   ha giocato davvero**. Se è assente ed entra un panchinaro, il ×2 si perde.
+   ha giocato davvero**. Se non si presenta, la fascia passa al **vice**, purché
+   sia un titolare e abbia giocato lui. Se mancano entrambi, il ×2 si perde.
+   Chi entra dalla panchina non eredita mai la fascia: si assegna prima del
+   torneo, non a risultati visti.
 
 **Se un titolare non ha giocato il torneo**, al suo posto entra — con il suo
 punteggio — il primo panchinaro della lista che invece l'ha giocato.
@@ -313,10 +316,16 @@ di stagione è la somma delle giornate già disputate.
 | Tetto imprese per giornata | +12 |
 | Scontro diretto: vinci / perdi / patta | +3 / −2 / 0 |
 | Capitano | ×2 |
+| Vice, se il capitano non gioca | ×2 |
 | Non ha giocato | entra la panchina |
 
-I bonus piazzamento **non si sommano**: vale solo il più alto. Il capitano raddoppia solo
-se scende davvero in campo (se viene sostituito, il bonus si perde).
+I bonus piazzamento **non si sommano**: vale solo il più alto.
+
+Il **vice capitano** esiste perché senza di lui nominare capitano un fuoriclasse
+assenteista era quasi solo un modo di buttare via il bonus. Così resta una
+scommessa — il vice segna meno del capitano che speravi — ma non un tutto o
+niente. Lo si sceglie nella formazione, accanto al capitano, e la formazione
+predefinita mette capitano il più pagato e vice il secondo.
 
 ### Impresa (batte i più forti)
 

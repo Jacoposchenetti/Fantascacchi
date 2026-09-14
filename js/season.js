@@ -163,6 +163,9 @@ export function formazionePredefinita(league, catalog, uid) {
     starters: ids.slice(0, quanti),
     bench: ids.slice(quanti),
     captain: ids[0] || null,
+    // Il secondo piu' pagato fa il vice: se il capitano non si presenta,
+    // la fascia va a quello che viene subito dopo per valore.
+    vice: ids[1] || null,
     predefinita: true,
   };
 }
