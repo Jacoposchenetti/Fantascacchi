@@ -85,8 +85,18 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
    */
   const haGiocato = (pid) => Boolean(pid && results.get(pid)?.played);
   const conFascia = haGiocato(captain) ? captain
-    : (vice && starters.includes(vice) && haGiocato(vice)) ? vice
+    : (vice && haGiocato(vice)) ? vice
     : null;
+
+  /*
+     Il vice in panchina non ha bisogno di regole speciali: sta in cima
+     alla lista, quindi e' gia' il primo a entrare.
+
+     Ci avevo messo un meccanismo che lo teneva da parte apposta per il
+     capitano, ed era sia superfluo sia peggiore: con il capitano presente
+     e un altro titolare assente, il vice restava seduto mentre entrava
+     qualcun altro. Un giocatore disponibile lasciato fuori per niente.
+  */
 
   const usedBench = new Set();
   const rows = [];
@@ -99,8 +109,8 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
     let subbedFrom = null;
 
     if (score.absent) {
-      // Primo panchinaro che ha effettivamente giocato.
-      const rep = bench.find((b) => !usedBench.has(b) && results.get(b)?.played);
+      // Il primo della panchina che ha effettivamente giocato.
+      const rep = bench.find((b) => !usedBench.has(b) && haGiocato(b));
       if (rep) {
         usedBench.add(rep);
         subbedFrom = pid;
@@ -111,10 +121,12 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
     }
 
     const isCaptain = pid === captain;
-    const isVice = pid === vice;
-    // `conFascia` e' gia' qualcuno che ha giocato: i due controlli in coda
-    // sono cintura e bretelle, non cambiano l'esito.
-    const captainApplies = pid === conFascia && !subbedFrom && !score.absent;
+    const isVice = effective === vice;
+    // Si guarda CHI E' SCESO IN CAMPO, non il titolare di partenza: se la
+    // fascia e' passata a un vice entrato dalla panchina, il raddoppio deve
+    // seguirlo. Un sostituto qualsiasi non combacia mai con `conFascia`,
+    // quindi non eredita niente.
+    const captainApplies = Boolean(conFascia) && effective === conFascia && !score.absent;
     const total = captainApplies ? round1(score.total * rules.captainMultiplier) : score.total;
 
     rows.push({
@@ -125,7 +137,7 @@ export function scoreLineup(lineup, results, rules = SCORING, rounds = 11) {
       isVice,
       // Vero quando la fascia si e' spostata sul vice: serve a spiegarlo
       // nel dettaglio, altrimenti uno guarda i punti e non capisce.
-      viceSubentrato: captainApplies && isVice,
+      viceSubentrato: captainApplies && conFascia === vice && captain !== vice,
       captainApplied: captainApplies,
       absent: score.absent,
       raw: raw,

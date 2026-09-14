@@ -54,10 +54,11 @@ export default function lineupView(ctx) {
     if (starters.includes(pid)) {
       setDraft({
         starters: starters.filter((x) => x !== pid),
-        bench: [...bench, pid],
-        // Le fasce valgono solo per i titolari: chi va in panchina le perde.
+        bench: draft.vice === pid ? [pid, ...bench] : [...bench, pid],
+        // Il capitano dev'essere un titolare; il vice no, puo' aspettare in
+        // panchina. Se ci finisce, va in cima: e' il primo a entrare.
         captain: draft.captain === pid ? null : draft.captain,
-        vice: draft.vice === pid ? null : draft.vice,
+        vice: draft.vice,
       });
     } else {
       if (starters.length >= league.lineupSize) {
@@ -71,6 +72,23 @@ export default function lineupView(ctx) {
         vice: draft.vice,
       });
     }
+  }
+
+  /**
+   * Nomina (o toglie) il vice. Se sta in panchina lo si porta in cima:
+   * e' li' che entrera', ed e' meglio che si veda invece di doverlo
+   * dedurre da una regola scritta da un'altra parte.
+   */
+  function setVice(pid) {
+    const togli = draft.vice === pid;
+    const inPanchina = bench.includes(pid);
+    setDraft({
+      ...draft,
+      starters,
+      bench: !togli && inPanchina ? [pid, ...bench.filter((x) => x !== pid)] : bench,
+      vice: togli ? null : pid,
+      captain: draft.captain === pid ? null : draft.captain,
+    });
   }
 
   function moveBench(pid, dir) {
@@ -151,22 +169,28 @@ export default function lineupView(ctx) {
             // Nessuno puo' portare due fasce: nominando l'uno si libera l'altro.
             onCaptain: () => setDraft({ ...draft, starters, bench,
               captain: pid, vice: draft.vice === pid ? null : draft.vice }),
-            onVice: () => setDraft({ ...draft, starters, bench,
-              vice: draft.vice === pid ? null : pid,
-              captain: draft.captain === pid ? null : draft.captain }),
+            onVice: () => setVice(pid),
           })))
         : el("div.card.card-tight.center.mute-2.small", "Scegli i titolari dalla panchina"),
     ),
 
     section(`Panchina (${bench.length}) — in ordine di ingresso`,
       bench.length
-        ? el("div.plist", bench.map((pid, i) => row(ctx, byId.get(pid), {
-            picked: false,
-            benchIndex: i,
-            onToggle: () => toggle(pid),
-            onUp: i > 0 ? () => moveBench(pid, -1) : null,
-            onDown: i < bench.length - 1 ? () => moveBench(pid, +1) : null,
-          })))
+        ? el("div.plist", bench.map((pid, i) => {
+            const eVice = draft.vice === pid;
+            // Le frecce muovono la coda; il vice resta inchiodato in cima,
+            // perche' "primo a entrare" e' proprio quello che lo definisce.
+            const primoNonVice = bench.findIndex((x) => x !== draft.vice);
+            return row(ctx, byId.get(pid), {
+              picked: false,
+              benchIndex: i,
+              vice: eVice,
+              onToggle: () => toggle(pid),
+              onVice: () => setVice(pid),
+              onUp: !eVice && i > primoNonVice ? () => moveBench(pid, -1) : null,
+              onDown: !eVice && i < bench.length - 1 ? () => moveBench(pid, +1) : null,
+            });
+          }))
         : el("div.card.card-tight.center.mute-2.small", "Nessuno in panchina"),
     ),
 
@@ -255,7 +279,11 @@ function row(ctx, p, o) {
           el("span", `${p.rating} blitz`),
           p.window ? el("span", { class: presenceClass(p) },
             `presente ${p.events}/${p.window}`) : null,
-          o.benchIndex !== undefined && el("span", `${o.benchIndex + 1}ª riserva`)),
+          o.benchIndex !== undefined && el("span", `${o.benchIndex + 1}ª riserva`),
+          // In panchina il vice e' gia' il primo a entrare: quello che va
+          // aggiunto e' la fascia, che non si deduce dalla posizione.
+          !o.picked && o.vice && el("span", { style: "color:var(--gold)" },
+            "e prende la fascia se manca il capitano")),
       ),
     ),
     el("div.row.pcard-side", { style: "gap:.25rem;flex-wrap:nowrap" },
@@ -276,10 +304,10 @@ function row(ctx, p, o) {
       }, o.captain ? "Capitano" : "C"),
       // Il vice raccoglie la fascia se il capitano non si presenta. Sul
       // capitano stesso non ha senso mostrarlo: sarebbe un doppione.
-      o.picked && !o.captain && el("button.btn.btn-sm.btn-ghost", {
+      !o.captain && o.onVice && el("button.btn.btn-sm.btn-ghost", {
         type: "button", onclick: o.onVice,
         "aria-label": o.vice ? "Togli la fascia di vice" : "Nomina vice capitano",
-        title: "Vice: raddoppia al posto del capitano se il capitano non gioca",
+        title: "Vice: entra e raddoppia al posto del capitano, se il capitano non gioca",
       }, o.vice ? "Vice" : "V"),
       el("button.btn.btn-sm", {
         type: "button", onclick: o.onToggle,

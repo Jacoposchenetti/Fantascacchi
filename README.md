@@ -295,9 +295,7 @@ Ogni giornata, per ogni tuo titolare che ha giocato il torneo:
    Fra due tuoi non conta: è una partita di giro.
 6. **Capitano** — la somma di tutto quanto sopra `× 2`, ma **solo se il capitano
    ha giocato davvero**. Se non si presenta, la fascia passa al **vice**, purché
-   sia un titolare e abbia giocato lui. Se mancano entrambi, il ×2 si perde.
-   Chi entra dalla panchina non eredita mai la fascia: si assegna prima del
-   torneo, non a risultati visti.
+   abbia giocato lui. Se mancano entrambi, il ×2 si perde.
 
 **Se un titolare non ha giocato il torneo**, al suo posto entra — con il suo
 punteggio — il primo panchinaro della lista che invece l'ha giocato.
@@ -325,6 +323,15 @@ Il **vice capitano** esiste perché senza di lui nominare capitano un fuoriclass
 assenteista era quasi solo un modo di buttare via il bonus. Così resta una
 scommessa — il vice segna meno del capitano che speravi — ma non un tutto o
 niente. Lo si sceglie nella formazione, accanto al capitano.
+
+Il vice può essere **un titolare o un panchinaro**. Se lo scegli in panchina
+viene messo in cima alla lista, quindi è comunque il primo a entrare: non serve
+nessuna regola in più, perché "primo della fila" è già quello che lo definisce.
+
+Avevo scritto un meccanismo che lo teneva da parte apposta per il capitano, ed
+era sia superfluo sia peggiore — col capitano presente e un altro titolare
+assente, il vice restava seduto mentre entrava qualcun altro. Un giocatore
+disponibile lasciato fuori per niente.
 
 La formazione predefinita mette **capitano il più pagato** e **vice il più
 forte per rating** fra gli altri titolari. I due criteri sono diversi apposta:
