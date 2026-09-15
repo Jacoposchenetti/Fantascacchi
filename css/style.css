@@ -601,3 +601,54 @@ body.menu-aperto .drawer { transform: none; visibility: visible; }
 @media (prefers-reduced-motion: reduce) {
   .drawer, .scrim { transition: none; }
 }
+
+/* ------------------------------ scacchiera ------------------------------ */
+/*
+   Pezzi con i glifi Unicode PIENI per entrambi i colori, distinti dal
+   colore del testo. I glifi "vuoti" del bianco (♔) su fondo scuro si
+   leggono male, e su parecchi telefoni non si leggono affatto.
+*/
+.boardwrap {
+  display: flex; gap: .8rem; align-items: flex-start; flex-wrap: wrap;
+}
+.boardcol { flex: 1 1 18rem; display: grid; gap: .5rem; min-width: 0; }
+.board {
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  width: 100%; aspect-ratio: 1;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.sq { display: grid; place-items: center; position: relative; }
+.sq-l { background: #b9a88f; }
+.sq-d { background: #6d5c48; }
+.sq-hit::after {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(224,168,58,.42);
+}
+.pc {
+  font-size: min(7vw, 1.9rem); line-height: 1; position: relative; z-index: 1;
+  user-select: none;
+}
+.pc-w { color: #fdfcfa; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+.pc-b { color: #1c1713; text-shadow: 0 1px 1px rgba(255,255,255,.18); }
+
+.moves {
+  flex: 1 1 11rem; max-height: 14rem; overflow-y: auto;
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: .15rem;
+  padding: .4rem; background: var(--bg-2);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.move {
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--text-dim); font: 600 .82rem/1 var(--mono, monospace);
+  padding: .3rem .4rem; border-radius: 4px; white-space: nowrap;
+}
+.move:hover { color: var(--text); background: var(--surface); }
+.move.is-now { background: var(--gold); color: var(--bg); }
+.move .num { color: var(--text-mute, #8a7f72); margin-right: .2rem; }
+
+/* Su schermo largo l'elenco mosse sta di fianco e puo' essere alto quanto
+   la scacchiera; su telefono resta sotto, basso, coi comandi gia' passati. */
+@media (min-width: 620px) {
+  .moves { max-height: 24rem; }
+}

@@ -239,3 +239,41 @@ export async function fetchProfile(username) {
     rating: stats?.chess_blitz?.last?.rating || 2400,
   };
 }
+
+/* --------------------------- partite di un turno ------------------------ */
+
+// Un gruppo scaricato serve per TUTTE le sue partite: chi ne guarda tre
+// dello stesso turno paga una chiamata sola. La cache vive quanto la
+// scheda, che e' esattamente la durata di una sessione di curiosita'.
+const gruppiInCache = new Map();
+
+/**
+ * Le partite di un turno, indicizzate per id.
+ *
+ * Le mosse non stanno nel repo: l'indice in data/tt/partite/ dice solo
+ * chi ha giocato contro chi e dove trovarla. Il PGN si prende da
+ * chess.com al momento del bisogno — 130 KB compressi per un turno
+ * intero, contro gli 11 MB che sarebbero serviti per archiviarli tutti.
+ */
+export async function partiteDelTurno(tournamentId, turno, gruppo = 1) {
+  const chiave = `${tournamentId}:${turno}:${gruppo}`;
+  if (gruppiInCache.has(chiave)) return gruppiInCache.get(chiave);
+
+  const attesa = (async () => {
+    const res = await fetch(`${API}/tournament/${tournamentId}/${turno}/${gruppo}`,
+      { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Turno non disponibile (${res.status})`);
+    const dati = await res.json();
+    const mappa = new Map();
+    for (const g of dati.games || []) {
+      const id = (g.url || "").split("/").pop();
+      if (id) mappa.set(id, g);
+    }
+    return mappa;
+  })();
+
+  // Si mette in cache la PROMESSA, non il risultato: due partite aperte
+  // in fretta dallo stesso turno devono condividere una sola chiamata.
+  gruppiInCache.set(chiave, attesa);
+  try { return await attesa; } catch (e) { gruppiInCache.delete(chiave); throw e; }
+}

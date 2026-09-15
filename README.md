@@ -393,6 +393,48 @@ Le regole stanno in `js/config.js` (`SCORING`) e si possono cambiare a piacere.
 
 ---
 
+## Le tue partite
+
+Una scheda mostra le **partite vere** giocate dai tuoi giocatori in ogni
+Titled Tuesday, raggruppate per giocatore, con avversario, apertura ed esito.
+Si aprono su una scacchiera dentro l'app: mossa per mossa, con le frecce della
+tastiera, e la scacchiera è girata dalla parte del *tuo* giocatore.
+
+### Dove stanno le mosse (spoiler: non qui)
+
+`data/tt/partite/<torneo>.json` contiene solo l'**indice**: chi ha giocato
+contro chi, con che rating, com'è finita, e le coordinate (turno + gruppo) per
+ritrovare la partita. Sono **23 KB compressi** per torneo.
+
+Le mosse si scaricano da chess.com quando si apre davvero una partita. Costa
+una chiamata da 130 KB compressi — ma quella chiamata porta **tutte** le
+partite di quel turno, quindi chi ne guarda tre di fila ne paga una sola, e la
+cache dura quanto la scheda.
+
+L'alternativa era archiviare i PGN. Misurata prima di scartarla:
+
+| | nel repo | scaricati dall'utente |
+|---|---|---|
+| PGN interi | 39 MB | — |
+| solo le mosse, senza orologi | 11 MB | 274 KB a giornata |
+| **solo l'indice** (scelta) | **0,9 MB** | **23 KB** + 130 KB a turno aperto |
+
+Quarantaquattro MB l'anno nel repo per dati che chess.com serve già benissimo
+non valevano il risparmio di una chiamata.
+
+### La scacchiera
+
+Le mosse arrivano in SAN (`Nbd2`, `exd6`, `O-O`), che sembra semplice e non lo
+è: la notazione **omette** il pezzo di partenza quando una sola mossa è legale,
+quindi per ricostruirla bisogna sapere quali pezzi sono inchiodati. Scriverselo
+a mano vuol dire sbagliare in silenzio proprio nelle partite più interessanti,
+quindi si usa **chess.js** — caricata da CDN solo su questa pagina, non
+all'avvio dell'app.
+
+I pezzi sono glifi Unicode **pieni** per entrambi i colori, distinti dal colore
+del testo: i glifi "vuoti" del bianco (♔) su fondo scuro si leggono male, e su
+parecchi telefoni non si leggono affatto.
+
 ## Provarlo subito in locale
 
 I moduli ES non funzionano da `file://`, serve un server:

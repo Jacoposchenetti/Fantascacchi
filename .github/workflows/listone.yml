@@ -52,6 +52,11 @@ jobs:
       - name: Rigenera il listone
         run: python tools/build_listone.py --events 26 --top 150 --fide-top 15
 
+      # Indice delle partite per "Le tue partite". Incrementale: salta i
+      # tornei gia' fatti, quindi ogni settimana ne scarica uno solo.
+      - name: Indicizza le partite
+        run: python tools/build_games.py --events 13
+
       - name: Committa solo se e' cambiato qualcosa
         run: |
           git add -A data/tt data/listone.json data/gm-index.json

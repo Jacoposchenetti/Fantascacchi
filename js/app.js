@@ -23,6 +23,7 @@ import squadView from "./views/squad.js";
 import lineupView from "./views/lineup.js";
 import matchdaysView from "./views/matchdays.js";
 import standingsView from "./views/standings.js";
+import partiteView from "./views/partite.js";
 import settingsView from "./views/settings.js";
 import tutorialView from "./views/tutorial.js";
 
@@ -32,6 +33,7 @@ const TABS = [
   { key: "formazione",   label: "Formazione", view: lineupView },
   { key: "giornate",     label: "Giornate",   view: matchdaysView },
   { key: "classifica",   label: "Classifica", view: standingsView },
+  { key: "partite",      label: "Partite",    view: partiteView },
   { key: "impostazioni", label: "Impostazioni", view: settingsView },
 ];
 
