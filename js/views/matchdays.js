@@ -11,8 +11,7 @@ import { el, empty, modal, fmtPts, ptsClass } from "../ui.js";
 import { scoreMatchday } from "../scoring.js";
 import { members, memberName, allOwnedPlayerIds } from "../league.js";
 import { effectiveLineup, giaGiocata, dataLunga, quando } from "../season.js";
-import livePanel, { inDiretta, linkTorneo } from "./live.js";
-import telecronaca from "./telecronaca.js";
+import { inDiretta, linkTorneo } from "./live.js";
 
 const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
 
@@ -86,11 +85,17 @@ function slotCard(ctx, slot) {
               : `${slot.played} partecipanti`)),
       el("span.badge." + cls, label)),
 
-    // Mentre il torneo e' in corso: prima la telecronaca, poi i risultati
-    // che arrivano. Chi apre la pagina durante il Titled Tuesday vuole
-    // soprattutto guardare.
-    inDiretta(slot) && telecronaca(),
-    inDiretta(slot) && livePanel(ctx, slot),
+    // La diretta sta in "Partite": questa pagina e' il calendario e i punti,
+    // quella e' dove si va per guardare. Qui resta solo l'indicazione che
+    // sta succedendo adesso, che e' l'informazione da calendario.
+    inDiretta(slot) && el("div.notice",
+      el("strong", "Si sta giocando adesso. "),
+      "La telecronaca e le partite appena finite sono in ",
+      el("button.btn.btn-sm", {
+        style: "margin-left:.3rem",
+        onclick: () => ctx.go(`#/l/${league.id}/partite`),
+      }, "Partite"),
+    ),
 
     slot.status === "pending" && !inDiretta(slot) && el("div.notice",
       "Il torneo si è giocato. I punteggi compaiono da soli non appena la "

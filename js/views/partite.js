@@ -14,6 +14,8 @@ import { el, render, spinner, flag } from "../ui.js";
 import { rosterOf } from "../league.js";
 import { giaGiocata, dataLunga } from "../season.js";
 import { mostraPartita } from "./scacchiera.js";
+import livePanel, { inDiretta } from "./live.js";
+import telecronaca from "./telecronaca.js";
 
 // Un indice per torneo, tenuto finche' dura la scheda.
 const indici = new Map();
@@ -54,15 +56,33 @@ export default function partiteView(ctx) {
         "Quando avrai dei giocatori, qui potrai rivedere le loro partite."));
   }
 
+  // Questa e' la pagina per GUARDARE: se si sta giocando adesso, la diretta
+  // viene prima di tutto. Sta qui e non in Giornate — che parla di
+  // calendario e punteggi — perche' e' qui che uno viene per vedere.
+  const inCorso = plan.slots.find((s) => inDiretta(s));
+  const diretta = inCorso
+    ? el("div.stack", { style: "gap:.8rem" },
+        el("div.section-head",
+          el("h2", "Si gioca adesso"),
+          el("span.badge.badge-red", `Giornata ${inCorso.n}`)),
+        telecronaca(),
+        livePanel(ctx, inCorso))
+    : null;
+
   // Solo le giornate gia' giocate hanno partite da mostrare, e solo quelle
   // con un id sono tornei veri per cui esiste l'indice.
   const giocate = plan.slots.filter((s) => giaGiocata(s) && s.id);
   if (!giocate.length) {
-    return el("div.card.stack",
-      el("h2", "Ancora nessuna partita"),
-      el("p.muted", { style: "margin:0" },
-        "Il primo Titled Tuesday della stagione non si è ancora giocato. "
-        + "Appena finisce, le partite dei tuoi compaiono qui."));
+    return el("div.stack", { style: "gap:1.2rem" },
+      diretta,
+      el("div.card.stack",
+        el("h2", "Ancora nessun archivio"),
+        el("p.muted", { style: "margin:0" },
+          inCorso
+            ? "Le partite di oggi si potranno rivedere sulla scacchiera dal "
+              + "mercoledì mattina, quando arriva l'archivio."
+            : "Il primo Titled Tuesday della stagione non si è ancora giocato. "
+              + "Appena finisce, le partite dei tuoi compaiono qui.")));
   }
 
   const slot = giocate.find((s) => s.n === giornataScelta) || giocate[giocate.length - 1];
@@ -77,6 +97,8 @@ export default function partiteView(ctx) {
   })();
 
   return el("div.stack", { style: "gap:1.2rem" },
+
+    diretta,
 
     el("div.card.card-hi.stack-s",
       el("h2", { style: "margin:0" }, "Le tue partite"),

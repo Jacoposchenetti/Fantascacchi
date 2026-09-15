@@ -395,8 +395,15 @@ Le regole stanno in `js/config.js` (`SCORING`) e si possono cambiare a piacere.
 
 ## La telecronaca, mentre si gioca
 
-Durante il Titled Tuesday compare nella giornata in corso un riquadro con la
-**diretta commentata di chess.com** su Twitch. Non parte da sola: è video, e un
+Durante il Titled Tuesday, in cima alla pagina **Partite** compare la sezione
+*«Si gioca adesso»*: la **diretta commentata di chess.com** su Twitch e le
+partite dei tuoi che finiscono in tempo reale.
+
+Sta lì e non in Giornate perché sono due pagine con due mestieri: Giornate è
+calendario e punteggi, Partite è dove si va per **guardare**. In Giornate resta
+solo il rimando, che è l'informazione da calendario. E c'è un vantaggio
+pratico: durante il torneo l'archivio delle partite è vuoto — l'indice arriva
+il mercoledì — quindi la diretta riempie esattamente quel buco. Non parte da sola: è video, e un
 player di terze parti che si accende all'apertura della pagina significa
 qualche mega e un pezzo di Twitch che ti guarda, a chi magari era passato solo
 per controllare i punti.
