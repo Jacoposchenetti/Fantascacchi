@@ -393,6 +393,35 @@ Le regole stanno in `js/config.js` (`SCORING`) e si possono cambiare a piacere.
 
 ---
 
+## La telecronaca, mentre si gioca
+
+Durante il Titled Tuesday compare nella giornata in corso un riquadro con la
+**diretta commentata di chess.com** su Twitch. Non parte da sola: è video, e un
+player di terze parti che si accende all'apertura della pagina significa
+qualche mega e un pezzo di Twitch che ti guarda, a chi magari era passato solo
+per controllare i punti.
+
+Il dominio si legge da `location.hostname`, così l'embed funziona sia in
+sviluppo sia in produzione senza scriverlo da nessuna parte (Twitch accetta di
+essere incorporato solo se il parametro `parent` combacia).
+
+### Perché le registrazioni no
+
+Le telecronache **registrate** non si possono mettere, e non per pigrizia:
+
+- L'API pubblica di chess.com non espone niente sui video. L'unico endpoint
+  vicino è `/pub/streamers`, che dà solo chi è in diretta *adesso*.
+- Le telecronache stanno su Twitch, e i VOD dei partner **scadono dopo sessanta
+  giorni** — cioè prima della fine di una stagione da dieci giornate. I link
+  marcirebbero da soli.
+- Sui canali YouTube (controllati i feed RSS pubblici) non vengono archiviate
+  in modo sistematico con quel titolo.
+- Soprattutto: una telecronaca è un flusso unico di quattro ore **senza indice
+  dei momenti**. La pagina Partite ragiona per singola partita, e un link a
+  «da qualche parte dentro quattro ore» non serve a nessuno.
+
+Per rivedere una partita c'è la scacchiera, che va alla mossa esatta.
+
 ## Le tue partite
 
 Una scheda mostra le **partite vere** giocate dai tuoi giocatori in ogni

@@ -12,6 +12,7 @@ import { scoreMatchday } from "../scoring.js";
 import { members, memberName, allOwnedPlayerIds } from "../league.js";
 import { effectiveLineup, giaGiocata, dataLunga, quando } from "../season.js";
 import livePanel, { inDiretta, linkTorneo } from "./live.js";
+import telecronaca from "./telecronaca.js";
 
 const duelSum = (r) => (r.detail?.duels || []).reduce((s, d) => s + d.pts, 0);
 
@@ -85,6 +86,10 @@ function slotCard(ctx, slot) {
               : `${slot.played} partecipanti`)),
       el("span.badge." + cls, label)),
 
+    // Mentre il torneo e' in corso: prima la telecronaca, poi i risultati
+    // che arrivano. Chi apre la pagina durante il Titled Tuesday vuole
+    // soprattutto guardare.
+    inDiretta(slot) && telecronaca(),
     inDiretta(slot) && livePanel(ctx, slot),
 
     slot.status === "pending" && !inDiretta(slot) && el("div.notice",
