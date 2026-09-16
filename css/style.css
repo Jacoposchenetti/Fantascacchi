@@ -667,3 +667,27 @@ body.menu-aperto .drawer { transform: none; visibility: visible; }
   border: 1px solid var(--line-soft);
 }
 .videowrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* Barra del vantaggio, a fianco della scacchiera. Il bianco cresce dal
+   basso; la parte scura resta sopra. */
+.boardrow { display: flex; gap: .4rem; align-items: stretch; }
+.evalbar {
+  position: relative; width: 14px; flex: 0 0 14px;
+  background: #2a2420; border: 1px solid var(--line-soft);
+  border-radius: 999px; overflow: hidden;
+}
+.evalbar[hidden] { display: none; }
+.evalbar i {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+  background: #efeae3; transition: height .25s ease;
+}
+/* Scacchiera girata: sotto c'e' il nero, quindi i due colori si scambiano. */
+.evalbar.eval-nero { background: #efeae3; }
+.evalbar.eval-nero i { background: #2a2420; }
+.evalnum {
+  position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%);
+  font: 700 .55rem/1 var(--mono, monospace); color: var(--text-dim);
+  writing-mode: vertical-rl; letter-spacing: .02em;
+  mix-blend-mode: difference; pointer-events: none;
+}
+.boardrow .board { flex: 1 1 auto; }

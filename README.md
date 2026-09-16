@@ -458,6 +458,37 @@ L'alternativa era archiviare i PGN. Misurata prima di scartarla:
 Quarantaquattro MB l'anno nel repo per dati che chess.com serve già benissimo
 non valevano il risparmio di una chiamata.
 
+### La barra del vantaggio
+
+A fianco della scacchiera c'è una barra con la valutazione di **Stockfish**, che
+si accende col pulsante *Valutazione*. Non parte da sola: sono 328 KB di motore
+che a chi vuole solo rivedere le mosse non servono.
+
+Gira in un **Web Worker**, altrimenti bloccherebbe le frecce con cui si scorre
+la partita. Misurato su una posizione di mezzo gioco:
+
+| | tempo | profondità |
+|---|---|---|
+| `go depth 8` | 68 ms | 8 |
+| `go movetime 300` | **405 ms** | 11 |
+| `go depth 14` | 22.700 ms | 14 |
+
+Si usa `movetime 300`: profondità 11 basta e avanza per dire chi sta meglio, e
+depth 14 costerebbe cinquanta volte tanto. Ogni nuova valutazione annulla la
+precedente, così tenere premuta la freccia non accoda venti analisi.
+
+Due dettagli che è facile sbagliare:
+
+- Il punteggio UCI è **dal punto di vista di chi muove**. Va normalizzato sul
+  bianco, altrimenti la barra si ribalta a ogni mossa.
+- Il riempimento parte dal basso e rappresenta **chi sta sotto la scacchiera**.
+  Con la scacchiera girata sotto c'è il nero, quindi i due colori si scambiano:
+  senza, una barra quasi tutta chiara racconterebbe che vince il bianco proprio
+  mentre il nero è avanti di nove.
+
+La conversione da centesimi di pedone a quota di barra è una sigmoide, non una
+proporzione: fra +0,2 e +0,5 cambia tutto, fra +8 e +9 non cambia niente.
+
 ### La scacchiera
 
 Le mosse arrivano in SAN (`Nbd2`, `exd6`, `O-O`), che sembra semplice e non lo

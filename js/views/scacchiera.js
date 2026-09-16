@@ -16,6 +16,7 @@
 
 import { el, modal } from "../ui.js";
 import { partiteDelTurno } from "../chesscom.js";
+import { valuta, spegni, quotaBianco, etichetta } from "../motore.js";
 
 const CHESS_JS = "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm";
 
@@ -90,12 +91,43 @@ function vista(riga, mosse, posizioni, mio, url, close) {
 
   const scacchiera = el("div.board");
   const elencoMosse = el("div.moves");
-  const etichetta = el("span.small.mute-2");
+  const etichettaMossa = el("span.small.mute-2");
+
+  // Barra del vantaggio: spenta finche' non la si chiede, perche' accenderla
+  // scarica 328 KB di motore che a chi vuole solo rivedere le mosse non
+  // servono.
+  let barraAccesa = false;
+  const riempimento = el("i");
+  const valoreBarra = el("span.evalnum", "—");
+  // Il riempimento parte sempre dal basso e rappresenta CHI STA SOTTO alla
+  // scacchiera: col nero in basso dev'essere scuro, altrimenti una barra
+  // quasi tutta chiara racconterebbe che sta vincendo il bianco proprio
+  // mentre il nero e' avanti di nove.
+  const barra = el("div.evalbar", {
+    hidden: true, class: giraLaScacchiera ? "eval-nero" : "",
+  }, riempimento, valoreBarra);
+
+  async function aggiornaBarra() {
+    if (!barraAccesa) return;
+    valoreBarra.textContent = "…";
+    try {
+      const v = await valuta(posizioni[ply]);
+      if (!barraAccesa) return;
+      const quota = quotaBianco(v);
+      // La barra cresce dal basso per chi sta sotto la scacchiera: se e'
+      // girata, in basso c'e' il nero.
+      const daSotto = giraLaScacchiera ? 1 - quota : quota;
+      riempimento.style.height = `${(daSotto * 100).toFixed(1)}%`;
+      valoreBarra.textContent = etichetta(v);
+    } catch {
+      valoreBarra.textContent = "—";
+    }
+  }
 
   function disegna() {
     scacchiera.replaceChildren(...caselle(posizioni[ply], giraLaScacchiera,
       ply > 0 ? mosse[ply - 1] : null));
-    etichetta.textContent = ply === 0
+    etichettaMossa.textContent = ply === 0
       ? "posizione iniziale"
       : `${Math.ceil(ply / 2)}${ply % 2 ? "." : "..."} ${mosse[ply - 1].san}`;
     elencoMosse.querySelectorAll("button").forEach((b, i) => {
@@ -105,7 +137,11 @@ function vista(riga, mosse, posizioni, mio, url, close) {
     if (attiva) attiva.scrollIntoView({ block: "nearest" });
   }
 
-  const vai = (n) => { ply = Math.max(0, Math.min(posizioni.length - 1, n)); disegna(); };
+  const vai = (n) => {
+    ply = Math.max(0, Math.min(posizioni.length - 1, n));
+    disegna();
+    aggiornaBarra();
+  };
 
   elencoMosse.replaceChildren(...mosse.map((m, i) => el("button.move", {
     type: "button", onclick: () => vai(i + 1),
@@ -122,8 +158,11 @@ function vista(riga, mosse, posizioni, mio, url, close) {
   };
   document.addEventListener("keydown", tasti);
   const dlg = document.querySelector("#modal");
-  dlg?.addEventListener("close", () => document.removeEventListener("keydown", tasti),
-    { once: true });
+  dlg?.addEventListener("close", () => {
+    document.removeEventListener("keydown", tasti);
+    // Il motore non deve restare acceso a consumare dopo la chiusura.
+    spegni();
+  }, { once: true });
 
   disegna();
 
@@ -145,13 +184,22 @@ function vista(riga, mosse, posizioni, mio, url, close) {
     // schermo proprio mentre servivano.
     el("div.boardwrap",
       el("div.boardcol",
-        scacchiera,
+        el("div.boardrow", barra, scacchiera),
         el("div.row", { style: "gap:.3rem;align-items:center" },
           el("button.btn.btn-sm.btn-ghost", { onclick: () => vai(0), "aria-label": "Inizio" }, "⏮"),
           el("button.btn.btn-sm.btn-ghost", { onclick: () => vai(ply - 1), "aria-label": "Indietro" }, "◀"),
           el("button.btn.btn-sm.btn-ghost", { onclick: () => vai(ply + 1), "aria-label": "Avanti" }, "▶"),
           el("button.btn.btn-sm.btn-ghost", { onclick: () => vai(posizioni.length - 1), "aria-label": "Fine" }, "⏭"),
-          etichetta,
+          etichettaMossa,
+          el("button.btn.btn-sm.btn-ghost", {
+            style: "margin-left:auto",
+            onclick: (e) => {
+              barraAccesa = !barraAccesa;
+              barra.hidden = !barraAccesa;
+              e.currentTarget.textContent = barraAccesa ? "Nascondi valutazione" : "Valutazione";
+              if (barraAccesa) aggiornaBarra();
+            },
+          }, "Valutazione"),
         ),
       ),
       elencoMosse,
