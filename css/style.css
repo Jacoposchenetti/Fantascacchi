@@ -613,7 +613,14 @@ body.menu-aperto .drawer { transform: none; visibility: visible; }
 }
 .boardcol { flex: 1 1 18rem; display: grid; gap: .5rem; min-width: 0; }
 .board {
-  display: grid; grid-template-columns: repeat(8, 1fr);
+  display: grid;
+  /* Le RIGHE vanno dichiarate quanto le colonne. Senza, la griglia le
+     dimensiona sul contenuto: le traverse coi pezzi diventavano alte 64px
+     e quelle vuote 33, quindi la scacchiera restava quadrata fuori ma
+     schiacciata dentro. Si notava solo in certe posizioni, ed e' per
+     questo che sembrava capitare "a volte". */
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
   width: 100%; aspect-ratio: 1;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   overflow: hidden;
