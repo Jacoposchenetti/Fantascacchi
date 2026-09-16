@@ -83,8 +83,19 @@ def discover_events(limit):
                 continue
             key = (int(year), MONTHS[month], int(day))
             found.setdefault(tid, key)
-        if len(found) > limit * 4:
-            break
+
+    # Si interrogano SEMPRE tutti gli anchor, anche quando il primo ne ha
+    # gia' portati tanti.
+    #
+    # Prima il ciclo si fermava appena ne aveva abbastanza, e cosi' facendo
+    # annullava la ragione stessa di averne quattro: servono a coprirsi a
+    # vicenda quando uno salta un martedi'. Hikaru da solo porta settanta
+    # tornei, quindi il ciclo non arrivava mai al secondo — e il Titled
+    # Tuesday del 15 settembre 2026, che Hikaru non ha giocato e
+    # polish_fighter3000 si', e' rimasto invisibile. Nessun errore: la
+    # giornata semplicemente non esisteva, punti compresi.
+    #
+    # Il risparmio erano tre richieste. Non valeva una giornata persa.
     ordered = sorted(found.items(), key=lambda kv: kv[1], reverse=True)
     return [(tid, "%04d-%02d-%02d" % key) for tid, key in ordered[:limit]]
 

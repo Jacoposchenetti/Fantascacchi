@@ -1,7 +1,17 @@
 {
- "generatedAt": "2026-09-16T06:07:19Z",
+ "generatedAt": "2026-09-16T11:15:07Z",
  "durataStimataS": 10800,
  "events": [
+  {
+   "id": "titled-tuesday-blitz-september-15-2026-31095525",
+   "date": "2026-09-15",
+   "start": 1789484400,
+   "finish": 1789492460,
+   "rounds": 11,
+   "played": 312,
+   "total": 508,
+   "h2h": 139
+  },
   {
    "id": "titled-tuesday-blitz-september-08-2026-31085409",
    "date": "2026-09-08",
@@ -11,6 +21,16 @@
    "played": 312,
    "total": 496,
    "h2h": 133
+  },
+  {
+   "id": "titled-tuesday-blitz-september-01-2026-31074565",
+   "date": "2026-09-01",
+   "start": 1788274800,
+   "finish": 1788282861,
+   "rounds": 11,
+   "played": 328,
+   "total": 527,
+   "h2h": 156
   },
   {
    "id": "titled-tuesday-blitz-august-25-2026-31064127",
@@ -33,6 +53,16 @@
    "h2h": 206
   },
   {
+   "id": "titled-tuesday-blitz-august-11-2026-6657019",
+   "date": "2026-08-11",
+   "start": 1786460400,
+   "finish": 1786468464,
+   "rounds": 11,
+   "played": 284,
+   "total": 451,
+   "h2h": 110
+  },
+  {
    "id": "titled-tuesday-blitz-august-04-2026-6647253",
    "date": "2026-08-04",
    "start": 1785855600,
@@ -41,6 +71,16 @@
    "played": 282,
    "total": 420,
    "h2h": 142
+  },
+  {
+   "id": "titled-tuesday-blitz-july-28-2026-6628019",
+   "date": "2026-07-28",
+   "start": 1785250800,
+   "finish": 1785258828,
+   "rounds": 11,
+   "played": 258,
+   "total": 423,
+   "h2h": 167
   },
   {
    "id": "titled-tuesday-blitz-july-14-2026-6609343",
