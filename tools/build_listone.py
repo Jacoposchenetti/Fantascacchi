@@ -138,6 +138,26 @@ def discover_events(limit):
     return fuori
 
 
+def ultimo_martedi_concluso(adesso=None):
+    """
+    L'ultimo Titled Tuesday che a quest'ora deve essersi concluso.
+
+    Si gioca martedi' alle 15:00 UTC e dura poco piu' di due ore; si lascia
+    un margine abbondante perche' chess.com pubblica l'elenco dei tornei
+    finiti con qualche ora di ritardo, e segnalare un torneo come
+    "mancante" mentre e' ancora in corso sarebbe solo rumore.
+    """
+    adesso = adesso or datetime.datetime.now(datetime.timezone.utc)
+    fine = adesso - datetime.timedelta(hours=6)
+    giorno = fine.date()
+    # Indietro fino al martedi' (weekday 1), poi indietro di una settimana
+    # se oggi e' martedi' ma il torneo non e' ancora finito.
+    giorno -= datetime.timedelta(days=(giorno.weekday() - 1) % 7)
+    if giorno == fine.date() and fine.hour < 17:
+        giorno -= datetime.timedelta(days=7)
+    return giorno
+
+
 def segnala_buchi(eventi):
     """
     Grida se manca un martedi' fra il primo e l'ultimo trovato.
@@ -148,9 +168,23 @@ def segnala_buchi(eventi):
     punti e partite. Meglio una riga rumorosa nel registro che una
     stagione con un buco dentro.
     """
-    if len(eventi) < 2:
+    if not eventi:
         return
     date = sorted(datetime.date.fromisoformat(d) for _, d in eventi)
+
+    # Prima di tutto la CODA, che e' il caso che ci e' sfuggito davvero.
+    # Cercare buchi solo fra il primo e l'ultimo trovato non serve a niente
+    # quando a mancare e' proprio l'ultimo: li' non c'e' nessun buco in
+    # mezzo, la serie finisce semplicemente troppo presto.
+    ultimo_atteso = ultimo_martedi_concluso()
+    if date[-1] < ultimo_atteso:
+        quanti = (ultimo_atteso - date[-1]).days // 7
+        print(f"      ! ATTENZIONE: manca il Titled Tuesday di {ultimo_atteso} "
+              f"({quanti} {'martedi' if quanti == 1 else 'martedi'} indietro). "
+              f"Il piu' recente trovato e' {date[-1]}.", file=sys.stderr)
+
+    if len(date) < 2:
+        return
     attesi, giorno = [], date[0]
     while giorno <= date[-1]:
         attesi.append(giorno)
