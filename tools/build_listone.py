@@ -14,6 +14,7 @@ partecipano quasi sempre.
 """
 
 import argparse
+import datetime
 import json
 import re
 import sys
@@ -28,8 +29,43 @@ import fide
 API = "https://api.chess.com/pub"
 UA = "fantascacchi/0.1 (listone builder; https://github.com/)"
 
-# Giocatori usati solo per SCOPRIRE gli ID dei tornei: partecipano quasi sempre.
-ANCHORS = ["hikaru", "polish_fighter3000", "ghandeevam2003", "nikotheodorou"]
+# Giocatori usati solo per SCOPRIRE gli ID dei tornei.
+#
+# Questa lista e' solo la scialuppa per il primo avvio: gli anchor veri si
+# pescano dal listone, vedi `anchors()`. Scriverli a mano non funziona,
+# perche' chi gioca sempre oggi puo' smettere domani — ed e' successo:
+# con questi quattro il Titled Tuesday del 21 luglio 2026 non l'aveva
+# giocato NESSUNO, e quella giornata e' rimasta invisibile per mesi.
+ANCHORS_INIZIALI = ["hikaru", "polish_fighter3000", "ghandeevam2003", "nikotheodorou"]
+
+QUANTI_ANCHOR = 8
+
+
+def anchors():
+    """
+    I giocatori piu' PRESENTI del listone precedente.
+
+    Gli anchor servono a una cosa sola: esserci. Il listone sa gia' chi si
+    presenta sempre (campo `events`), quindi la lista si aggiorna da sola a
+    ogni giro invece di invecchiare. Misurato sugli ultimi quattordici
+    martedi': coi nomi fissi la copertura peggiore era 0 su 4, con i piu'
+    presenti e' 5 su 6.
+
+    La dipendenza circolare (il listone nasce dagli anchor, gli anchor dal
+    listone) si rompe da sola: al primo avvio non c'e' listone e si usa la
+    scialuppa qui sopra.
+    """
+    try:
+        dati = json.loads((Path(__file__).resolve().parent.parent
+                           / "data" / "listone.json").read_text(encoding="utf-8"))
+        migliori = sorted(dati.get("players", []),
+                          key=lambda p: -(p.get("events") or 0))[:QUANTI_ANCHOR]
+        scelti = [p["id"] for p in migliori if p.get("events")]
+        if scelti:
+            return scelti
+    except Exception:
+        pass
+    return ANCHORS_INIZIALI
 
 MONTHS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
@@ -68,7 +104,7 @@ def get(url, retries=3):
 def discover_events(limit):
     """Trova gli ultimi Titled Tuesday, ordinati dal piu' recente."""
     found = {}
-    for anchor in ANCHORS:
+    for anchor in anchors():
         data = get(f"{API}/player/{anchor}/tournaments")
         time.sleep(SLEEP)
         if not data:
@@ -97,7 +133,35 @@ def discover_events(limit):
     #
     # Il risparmio erano tre richieste. Non valeva una giornata persa.
     ordered = sorted(found.items(), key=lambda kv: kv[1], reverse=True)
-    return [(tid, "%04d-%02d-%02d" % key) for tid, key in ordered[:limit]]
+    fuori = [(tid, "%04d-%02d-%02d" % key) for tid, key in ordered[:limit]]
+    segnala_buchi(fuori)
+    return fuori
+
+
+def segnala_buchi(eventi):
+    """
+    Grida se manca un martedi' fra il primo e l'ultimo trovato.
+
+    Un buco non e' per forza un errore — chess.com ogni tanto salta una
+    settimana — ma e' esattamente il sintomo che ci e' sfuggito l'ultima
+    volta: la giornata non c'era, nessuno se n'era accorto, e mancavano
+    punti e partite. Meglio una riga rumorosa nel registro che una
+    stagione con un buco dentro.
+    """
+    if len(eventi) < 2:
+        return
+    date = sorted(datetime.date.fromisoformat(d) for _, d in eventi)
+    attesi, giorno = [], date[0]
+    while giorno <= date[-1]:
+        attesi.append(giorno)
+        giorno += datetime.timedelta(days=7)
+    mancanti = [d for d in attesi if d not in set(date)]
+    if mancanti:
+        print(f"      ! ATTENZIONE: {len(mancanti)} martedi' non trovati fra "
+              f"{date[0]} e {date[-1]}:", file=sys.stderr)
+        for d in mancanti:
+            print(f"        {d} — nessuno degli anchor l'ha giocato, "
+                  f"oppure chess.com ha saltato la settimana", file=sys.stderr)
 
 
 def final_standings(tid, total_rounds=11):
