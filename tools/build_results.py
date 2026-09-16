@@ -94,8 +94,17 @@ def scan_rounds(tid, rounds, pool):
             if w in pool and b in pool:
                 h2h.append([w, b, res, rnd])
 
-            # Impresa: un giocatore del listone batte uno molto piu' forte.
-            if vinc and vinc[0] in pool:
+            # Impresa: battere uno molto piu' forte. Si registra per
+            # CHIUNQUE, non solo per chi e' nel listone di oggi.
+            #
+            # Filtrarle sul listone le congelava contro una fotografia: chi
+            # entrava nel listone dopo si vedeva il badge "+148" nell'elenco
+            # partite ma non i punti, e soprattutto un giocatore aggiunto a
+            # mano dall'admin — che nel listone non c'e' per definizione —
+            # non prendeva MAI il bonus impresa.
+            #
+            # Costa quattro kilobyte su tredici. Il filtro non li valeva.
+            if vinc:
                 gap = (perd[1].get("rating") or 0) - (vinc[1].get("rating") or 0)
                 if gap >= UPSET_MIN:
                     upsets.append([vinc[0], int(gap), rnd])

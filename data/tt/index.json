@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-09-16T11:24:21Z",
+ "generatedAt": "2026-09-16T11:34:12Z",
  "durataStimataS": 10800,
  "events": [
   {
@@ -10,7 +10,7 @@
    "rounds": 11,
    "played": 312,
    "total": 508,
-   "h2h": 139
+   "h2h": 153
   },
   {
    "id": "titled-tuesday-blitz-september-08-2026-31085409",
@@ -20,7 +20,7 @@
    "rounds": 11,
    "played": 312,
    "total": 496,
-   "h2h": 133
+   "h2h": 146
   },
   {
    "id": "titled-tuesday-blitz-september-01-2026-31074565",
@@ -30,7 +30,7 @@
    "rounds": 11,
    "played": 328,
    "total": 527,
-   "h2h": 156
+   "h2h": 167
   },
   {
    "id": "titled-tuesday-blitz-august-25-2026-31064127",
@@ -40,7 +40,7 @@
    "rounds": 11,
    "played": 262,
    "total": 459,
-   "h2h": 177
+   "h2h": 181
   },
   {
    "id": "titled-tuesday-blitz-august-18-2026-6666505",
@@ -50,7 +50,7 @@
    "rounds": 11,
    "played": 296,
    "total": 464,
-   "h2h": 206
+   "h2h": 220
   },
   {
    "id": "titled-tuesday-blitz-august-11-2026-6657019",
@@ -60,7 +60,7 @@
    "rounds": 11,
    "played": 284,
    "total": 451,
-   "h2h": 110
+   "h2h": 126
   },
   {
    "id": "titled-tuesday-blitz-august-04-2026-6647253",
@@ -70,7 +70,7 @@
    "rounds": 11,
    "played": 282,
    "total": 420,
-   "h2h": 142
+   "h2h": 157
   },
   {
    "id": "titled-tuesday-blitz-july-28-2026-6628019",
@@ -80,7 +80,7 @@
    "rounds": 11,
    "played": 258,
    "total": 423,
-   "h2h": 167
+   "h2h": 174
   },
   {
    "id": "titled-tuesday-blitz-july-21-2026-6618557",
@@ -90,7 +90,7 @@
    "rounds": 11,
    "played": 252,
    "total": 418,
-   "h2h": 146
+   "h2h": 160
   },
   {
    "id": "titled-tuesday-blitz-july-14-2026-6609343",
@@ -100,7 +100,7 @@
    "rounds": 11,
    "played": 304,
    "total": 450,
-   "h2h": 156
+   "h2h": 177
   },
   {
    "id": "titled-tuesday-blitz-july-07-2026-6590341",
@@ -110,7 +110,7 @@
    "rounds": 11,
    "played": 250,
    "total": 405,
-   "h2h": 209
+   "h2h": 215
   },
   {
    "id": "titled-tuesday-blitz-june-30-2026-6581005",
@@ -120,7 +120,7 @@
    "rounds": 11,
    "played": 278,
    "total": 442,
-   "h2h": 182
+   "h2h": 179
   },
   {
    "id": "titled-tuesday-blitz-june-23-2026-6562125",
