@@ -41,11 +41,15 @@ const PATTE = new Set(["agreed", "repetition", "stalemate", "insufficient",
 /** Il torneo di questa giornata si sta giocando adesso? */
 export function inDiretta(slot, now = Date.now()) {
   if (!slot) return false;
-  return now >= slot.start && now < slot.start + (slot.rounds || 11) * TURNO_MS + CODA_MS;
+  // `durata` la mette la fonte quando la sa: un turno di torneo classico
+  // dura ore, non i dodici minuti di un turno di Titled Tuesday.
+  const durata = slot.durata || (slot.rounds || 11) * TURNO_MS + CODA_MS;
+  return now >= slot.start && now < slot.start + durata;
 }
 
-/** Pagina del torneo su chess.com, dove le scacchiere si muovono davvero. */
+/** Dove le scacchiere si muovono davvero: chess.com o la diretta Lichess. */
 export function linkTorneo(slot) {
+  if (slot?.url) return slot.url;
   return slot?.id
     ? `https://www.chess.com/tournament/live/${slot.id}`
     : "https://www.chess.com/tournaments/live";

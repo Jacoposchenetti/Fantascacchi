@@ -13,7 +13,8 @@
    --------------------------------------------------------------- */
 
 import { el, toast } from "../ui.js";
-import { loadCatalog, allOwnedPlayerIds, ownedCount } from "../league.js";
+import { allOwnedPlayerIds, ownedCount } from "../league.js";
+import { loadCatalog } from "../fonte.js";
 import { demoStore, pianoDemo, risultatoDemo, TU, BOT } from "../demo/finto.js";
 import { creaMotore } from "../demo/bot.js";
 

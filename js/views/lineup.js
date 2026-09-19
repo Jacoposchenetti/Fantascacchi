@@ -13,6 +13,7 @@ import { el, toast, flag, presenceClass } from "../ui.js";
 import { rosterOf } from "../league.js";
 import { showPlayer } from "./player.js";
 import { effectiveLineup, lineupsFor, scegliVice, slotDocId, dataLunga, quando } from "../season.js";
+import { parole, tipoRating } from "../fonte.js";
 
 const drafts = new Map();   // n giornata -> {starters, bench, captain}
 
@@ -122,14 +123,17 @@ export default function lineupView(ctx) {
     || (eff.bench || []).join() !== bench.join();
   const dirty = changed || inherited;
 
+  const vocaboli = parole(ctx.league);
+
   return el("div.stack", { style: "gap:1.4rem" },
 
     el("div.card.card-hi.stack-s",
       el("div.spread",
         el("div",
-          el("h2", `Giornata ${slot.n} di ${plan.total}`),
+          el("h2", `${vocaboli.Giornata} ${slot.n} di ${plan.total}`),
           el("div.small.muted",
-            `Titled Tuesday del ${dataLunga(slot.date)} · si gioca ${quando(slot.start)}`)),
+            `${slot.nome || vocaboli.evento} del ${dataLunga(slot.date)} · `
+            + `si gioca ${quando(slot.start)}`)),
         own ? el("span.badge.badge-green", "Salvata")
           : eff?.predefinita ? el("span.badge", "Predefinita")
           : inherited ? el("span.badge.badge-gold", "Ereditata")
@@ -276,7 +280,7 @@ function row(ctx, p, o) {
           o.vice && el("span.badge", "V")),
         el("div.pmeta",
           flag(p.country) && el("span", flag(p.country)),
-          el("span", `${p.rating} blitz`),
+          el("span", `${p.rating} ${tipoRating(p)}`),
           p.window ? el("span", { class: presenceClass(p) },
             `presente ${p.events}/${p.window}`) : null,
           o.benchIndex !== undefined && el("span", `${o.benchIndex + 1}ª riserva`),

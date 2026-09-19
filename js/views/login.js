@@ -34,7 +34,7 @@ export default function loginView(ctx, pendingLeagueId) {
       el("h1", "Fantascacchi"),
       el("p.lede",
         "La fanta-lega sugli scacchisti veri. Asta, formazioni e classifica ",
-        "sui Titled Tuesday di chess.com."),
+        "sui Titled Tuesday o sui tornei classici."),
     ),
 
     el("div.card.stack", { style: "max-width:380px;margin:0 auto" },

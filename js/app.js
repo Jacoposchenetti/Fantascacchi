@@ -9,7 +9,8 @@
 
 import { $, render, el, toast, spinner } from "./ui.js";
 import { getStore } from "./store.js";
-import { loadCatalog, isAdmin as isAdminOf, inviteLink } from "./league.js";
+import { isAdmin as isAdminOf, inviteLink } from "./league.js";
+import { loadCatalog } from "./fonte.js";
 import { PRESENCE_BEAT } from "./config.js";
 import { loadCalendar, seasonPlan, loadResults } from "./season.js";
 import { initInstall } from "./install.js";
@@ -171,7 +172,11 @@ let ancoraStagione = null;
 
 async function syncSeason() {
   if (!state.league) return;
-  if (!state.calendar) state.calendar = await loadCalendar();
+  // Il calendario si rilegge a ogni sincronizzazione: due leghe aperte
+  // nella stessa sessione possono avere fonti diverse, e tenerne una copia
+  // sola qui dentro voleva dire mostrare i turni di un torneo classico a
+  // una lega sui Titled Tuesday. La cache vera sta in fonte.js.
+  state.calendar = await loadCalendar(state.league);
 
   // I risultati stanno in una mappa indicizzata per NUMERO di giornata, e
   // quel numero non e' stabile: finche' l'asta e' aperta `startsAt` vale 0 e
@@ -193,7 +198,7 @@ async function syncSeason() {
     if (slot.status !== "scored" && slot.status !== "pending") continue;
     if (state.results.has(slot.n)) continue;
     // In parallelo e senza bloccare: la pagina si ridisegna quando arrivano.
-    loadResults(slot)
+    loadResults(slot, state.league)
       .then((r) => { if (r) { state.results.set(slot.n, r); renderApp(); } })
       .catch(() => { /* giornata senza risultati: resta in attesa */ });
   }

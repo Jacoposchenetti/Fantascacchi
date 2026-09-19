@@ -92,6 +92,89 @@ firebase functions:secrets:set VAPID_PRIVATE_KEY
 Rigenerarle invalida tutte le iscrizioni esistenti, ma non è un dramma: il
 client se ne accorge da solo, butta la vecchia e si reiscrive.
 
+## Su cosa si gioca
+
+Una lega può poggiare su tre calendari diversi. Si sceglie creandola, e da lì
+in poi cambia tutto: chi si può comprare, cosa è una giornata, come si fanno
+i punti.
+
+| Fonte | Una giornata è | Il listone è | Da dove arrivano i risultati |
+|---|---|---|---|
+| **Titled Tuesday** | un torneo del martedì | i forti che li giocano | chess.com |
+| **Un torneo classico** | un **turno** | il campo di quel torneo | dirette Lichess |
+| **Circuito** | un **torneo intero** | i campi dei tornei scelti | dirette Lichess |
+
+Le leghe create prima che esistessero le altre due non hanno il campo `fonte`
+e restano Titled Tuesday: nessuno deve toccarle.
+
+### Perché Lichess e non chess.com
+
+I tornei classici si giocano sulla scacchiera vera, e chi li trasmette
+pubblica i PGN turno per turno. Lichess lo fa per tutto quello che conta —
+Tata Steel, Candidati, Grand Swiss, Olimpiadi — con un'API aperta, senza
+chiave. Da lì arrivano campo di partenza, classifica, risultati, Elo, FIDE id
+e le mosse di ogni partita.
+
+Un dettaglio che decide l'architettura: gli endpoint `/api/` mandano CORS `*`
+e li può leggere anche il browser, ma la classifica già fatta sta su un
+endpoint che il CORS non ce l'ha. Quindi l'archivio lo costruisce la CI —
+come per i Titled Tuesday — e il browser lo usa solo come ripiego quando un
+turno è appena finito e l'archivio non è ancora passato.
+
+### L'identità di uno scacchista
+
+Sui Titled Tuesday è lo username chess.com (`hikaru`). Sui tornei classici è
+il **FIDE id** (`fide:2016192`), perché i nomi cambiano traslitterazione da un
+torneo all'altro — «Praggnanandhaa R», «Praggnanandhaa, R» — e gli omonimi
+esistono davvero. Il nome per esteso viaggia comunque accanto, per chi legge.
+
+### Aggiungere un torneo
+
+Serve l'id della diretta Lichess, quello nell'URL
+(`lichess.org/broadcast/.../BLA70Vds`):
+
+```bash
+python tools/build_broadcast.py --cerca "Tata Steel"    # per trovarlo
+python tools/build_broadcast.py --segui BLA70Vds        # per seguirlo
+```
+
+`--segui` lo aggiunge a `data/bc/seguiti.json` e ne costruisce l'archivio. Da
+quel momento ci pensa il workflow `tornei.yml`, che gira due volte al giorno:
+i tornei in corso li rilegge, quelli finiti li salta al costo di una chiamata.
+Lo stesso si fa dalla scheda Actions con «Run workflow», mettendo l'id nel
+campo.
+
+L'archivio di un torneo chiuso di quattordici turni sta in 22 KB; un open da
+116 giocatori e 11 turni, partite comprese, in 226 KB.
+
+### Il punteggio cambia con la fonte
+
+Un turno di classico è **una partita**, e la tabella dei Titled Tuesday lì non
+vuol dire niente: «almeno 9 punti» su una partita sola non è una soglia, è un
+errore. Quindi ce n'è una per fonte, e Impostazioni mostra sempre quella della
+lega che stai guardando.
+
+* **Turno di torneo classico** — vittoria `+15`, patta `+6`, sconfitta `0`;
+  **vittoria col nero** `+3`; in testa al torneo `+4`, fra i primi tre `+2`.
+* **Torneo classico intero** (circuito) — come i Titled Tuesday, ma le soglie
+  sono frazioni invece che numeri fissi: un open va da nove a tredici turni, e
+  «almeno 9 punti» sarebbe un traguardo in un torneo e l'en plein in quello
+  dopo.
+
+Capitano, vice, panchina, imprese e scontri diretti funzionano uguale in tutte
+e tre. Anzi, negli scontri diretti il classico dà il meglio: in un girone
+all'italiana i tuoi giocatori si incontrano di continuo.
+
+### Quanto è grande il campo
+
+È la cosa da guardare prima di scegliere il torneo. I Candidati sono **8**
+giocatori, Tata Masters 14, Norway 10: con quattro amici e rose da otto non ci
+si sta. Gli open no — il Grand Swiss ne ha 116, la Coppa del Mondo di più.
+
+Per i tornei chiusi la strada c'è ed è già in casa: la modalità **salary cap**,
+dove lo stesso giocatore può stare in più rose e si vince su come lo schieri,
+non su chi se l'è accaparrato.
+
 ## Come si svolge
 
 Il gioco ha due tempi con esigenze opposte, come nel fantacalcio vero.
@@ -297,10 +380,18 @@ vibrazione e titolo lampeggiante** nella scheda. Si spengono col pulsante
 
 Prima l'asta: mezz'ora se live, quattro-cinque giorni se a buste chiuse.
 
-Poi la stagione, che è lunga **`matchdays` Titled Tuesday** — di default **10**,
-regolabile da 1 a 52 in Impostazioni. I Titled Tuesday sono settimanali, quindi
-10 giornate ≈ **due mesi e mezzo**. Il calendario mostra fin dal primo giorno
-tutte le date fino alla chiusura; quando è finita, la classifica è definitiva.
+Poi la stagione. Sui Titled Tuesday è lunga **`matchdays` tornei** — di default
+**10**, regolabile da 1 a 52 in Impostazioni — e siccome sono settimanali, 10
+giornate ≈ **due mesi e mezzo**.
+
+Su un torneo classico quel numero non si usa: la stagione **dura quanto il
+torneo**. Tagliare i Candidati a dieci turni perché dieci è il valore
+predefinito vorrebbe dire finire la lega a metà torneo. In un circuito, invece,
+il calendario si allunga da solo man mano che i tornei vengono trasmessi: non
+si possono prevedere, li annuncia il mondo.
+
+Il calendario mostra fin dal primo giorno tutte le date che si sanno; quando è
+finita, la classifica è definitiva.
 
 ### Come si calcola il punteggio, esattamente
 

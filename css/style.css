@@ -691,3 +691,83 @@ body.menu-aperto .drawer { transform: none; visibility: visible; }
   mix-blend-mode: difference; pointer-events: none;
 }
 .boardrow .board { flex: 1 1 auto; }
+
+/* ------------------- tabelle su schermo stretto ------------------------- */
+/*
+   Le tabelle di Classifica e Giornate hanno sei e quattro colonne: a 375px
+   sfondavano il contenitore (438px in 351) e scorrevano di lato senza che
+   si vedesse. Le colonne accessorie spariscono e si ripiegano sotto il
+   nome, dove ci stanno in orizzontale.
+*/
+.sottoriga { display: none; }
+
+@media (max-width: 620px) {
+  table th, table td { padding: .5rem .4rem; font-size: .84rem; }
+  .col-extra { display: none; }
+  /* Senza le colonne accessorie ci stanno: il pavimento di 420px le
+     farebbe scorrere per niente. */
+  table { min-width: 0; }
+  /* Le ultime decine di pixel: l'intestazione non va a capo, quindi e' la
+     spaziatura fra le lettere e il bottone in coda a decidere se la
+     tabella sta nello schermo o scorre per due pixel. */
+  table th { letter-spacing: .02em; }
+  table td .btn-sm { padding-inline: .5rem; }
+  .sottoriga {
+    display: block; margin-top: .15rem;
+    font-size: .72rem; color: var(--text-mute, #8a7f72);
+  }
+  .sottoriga b { color: var(--text-dim); font-weight: 600; }
+}
+
+/* La tabella giornata-per-giornata resta larga per forza: una colonna a
+   giornata. Li' lo scorrimento e' legittimo, ma va ANNUNCIATO — e il nome
+   deve restare fermo mentre si scorre, altrimenti non si sa piu' di chi
+   sia la riga. */
+.tablewrap { position: relative; }
+.tablewrap.scorre::after {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 28px;
+  background: linear-gradient(90deg, transparent, var(--surface));
+  pointer-events: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+@media (max-width: 620px) {
+  .tablewrap.scorre th:first-child,
+  .tablewrap.scorre td:first-child {
+    position: sticky; left: 0; z-index: 1;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--line-soft);
+  }
+}
+
+/* --------------------- rimando ai giocatori ---------------------- */
+
+/* Un nome che porta altrove. Deve leggersi come il grassetto che
+   sostituisce, non come un bottone: e' dentro una riga di testo. */
+.nomelink {
+  appearance: none; background: none; border: 0; padding: 0;
+  font: inherit; font-weight: 700; color: var(--text);
+  cursor: pointer; text-align: left;
+  border-bottom: 1px dashed var(--line);
+}
+.nomelink:hover, .nomelink:focus-visible { color: var(--gold); border-bottom-color: var(--gold); }
+.nomelink .freccia { margin-left: .25rem; font-weight: 400; color: var(--gold); }
+
+/* La sezione va sotto la topbar appiccicata, non dietro. */
+.gioc-sez { scroll-margin-top: calc(var(--topbar-h) + .8rem); }
+
+/* Chi arriva da "Giornate" atterra su una sezione fra tante: questo dice
+   quale, senza che debba ricercare il nome che ha appena toccato. */
+.gioc-sez.appena-arrivati > .section-head h3 { color: var(--gold); }
+.gioc-sez.appena-arrivati { animation: arrivo 1.6s ease-out; }
+@keyframes arrivo {
+  0%, 60% { background: rgba(200,164,88,.10); }
+  100%    { background: transparent; }
+}
+
+/* Le righe delle partite su schermo stretto: "T3 con il nero contro
+   yyaroslavchess2010 3112" non ci sta su una riga sola, e troncato a meta'
+   parola non dice piu' contro chi si e' giocato. Meglio andare a capo. */
+@media (max-width: 620px) {
+  .pcard-split .pname { flex-wrap: wrap; row-gap: .1rem; }
+  .pcard-split .pname > span { overflow: visible; white-space: normal; }
+  .pcard-split .pname > strong { overflow-wrap: anywhere; }
+}

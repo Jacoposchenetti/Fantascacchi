@@ -33,7 +33,8 @@ function promptDialog(title, text) {
     dlg.addEventListener("close", onClose);
   });
 }
-import { SCORING } from "../config.js";
+import { regole } from "../scoring.js";
+import { daBroadcast, parole } from "../fonte.js";
 import { AUCTION_MODES, DEFAULTS } from "../config.js";
 import { campiModo, applicaCampiModo, notaModo } from "./modeparams.js";
 import { members, memberName, ownedCount, inviteLink } from "../league.js";
@@ -79,25 +80,7 @@ export default function settingsView(ctx) {
     el("section",
       el("div.section-head", el("h2", "Come si fanno i punti")),
       el("div.card",
-        el("dl.kv",
-          kv("Ogni punto nel torneo", `×${SCORING.perPoint}`),
-          ...SCORING.placement.map((t, i) => kv(
-            t.max === 1 ? "Vittoria del torneo"
-              : t.max <= 3 ? `${t.max}° posto`
-              : `Top ${t.max}`,
-            fmtPts(t.bonus))),
-          kv("En plein (11/11)", fmtPts(SCORING.perfectScore)),
-          kv(`Almeno ${SCORING.strongScoreMin} punti`, fmtPts(SCORING.strongScore)),
-          kv(`Sotto ${SCORING.weakScoreMax} punti`, fmtPts(SCORING.weakScore)),
-          kv("Capitano", `×${SCORING.captainMultiplier}`),
-          kv("Non ha giocato", "entra la panchina"),
-          kv("Batte un avversario di lega", fmtPts(SCORING.duelWin)),
-          kv("Perde contro un avversario di lega", fmtPts(SCORING.duelLoss)),
-          kv("Patta fra i due", fmtPts(SCORING.duelDraw)),
-          ...SCORING.upset.map((t) =>
-            kv(`Batte uno +${t.gap} di rating`, fmtPts(t.bonus))),
-          kv("Tetto imprese per giornata", fmtPts(SCORING.upsetCap)),
-        ),
+        el("dl.kv", ...vociPunteggio(league)),
         el("p.small.mute-2", { style: "margin:.8rem 0 0" },
           "I bonus piazzamento non si sommano: vale solo il più alto. ",
           "Il capitano raddoppia solo se gioca davvero. ",
@@ -188,6 +171,62 @@ export default function settingsView(ctx) {
   );
 }
 
+/**
+ * Le voci del regolamento, che cambiano con la fonte.
+ *
+ * Una lega su un torneo classico non ha "ogni punto nel torneo ×3": ha una
+ * partita sola per giornata, che finisce in tre modi. Mostrare la tabella
+ * dei Titled Tuesday a chi gioca i Candidati vorrebbe dire spiegargli un
+ * regolamento che non e' il suo.
+ */
+function vociPunteggio(league) {
+  const r = regole(league);
+  const p = parole(league);
+
+  if (r.modo === "turno") {
+    return [
+      kv("Vittoria", fmtPts(r.win)),
+      kv("Patta", fmtPts(r.draw)),
+      kv("Sconfitta", fmtPts(r.loss)),
+      kv("Vittoria col nero", fmtPts(r.neroBonus)),
+      kv("In testa al torneo", fmtPts(r.leader)),
+      kv("Fra i primi tre", fmtPts(r.podio)),
+      kv("Capitano", `×${r.captainMultiplier}`),
+      kv("Non gioca il turno", "entra la panchina"),
+      kv("Batte un avversario di lega", fmtPts(r.duelWin)),
+      kv("Perde contro un avversario di lega", fmtPts(r.duelLoss)),
+      kv("Patta fra i due", fmtPts(r.duelDraw)),
+      ...r.upset.map((t) => kv(`Batte uno +${t.gap} di rating`, fmtPts(t.bonus))),
+    ];
+  }
+
+  const alta = r.strongRatio != null
+    ? `Almeno il ${Math.round(r.strongRatio * 100)}% dei punti`
+    : `Almeno ${r.strongScoreMin} punti`;
+  const bassa = r.weakRatio != null
+    ? `Sotto il ${Math.round(r.weakRatio * 100)}% dei punti`
+    : `Sotto ${r.weakScoreMax} punti`;
+
+  return [
+    kv("Ogni punto nel torneo", `×${r.perPoint}`),
+    ...r.placement.map((t) => kv(
+      t.max === 1 ? "Vittoria del torneo"
+        : t.max <= 3 ? `${t.max}° posto`
+        : `Top ${t.max}`,
+      fmtPts(t.bonus))),
+    kv("En plein", fmtPts(r.perfectScore)),
+    kv(alta, fmtPts(r.strongScore)),
+    kv(bassa, fmtPts(r.weakScore)),
+    kv("Capitano", `×${r.captainMultiplier}`),
+    kv("Non ha giocato", "entra la panchina"),
+    kv("Batte un avversario di lega", fmtPts(r.duelWin)),
+    kv("Perde contro un avversario di lega", fmtPts(r.duelLoss)),
+    kv("Patta fra i due", fmtPts(r.duelDraw)),
+    ...r.upset.map((t) => kv(`Batte uno +${t.gap} di rating`, fmtPts(t.bonus))),
+    kv(`Tetto imprese per ${p.giornata}`, fmtPts(r.upsetCap)),
+  ];
+}
+
 const kv = (k, v) => [el("dt", k), el("dd", v)];
 
 /* ------------------------------- form lega ----------------------------- */
@@ -253,8 +292,11 @@ function leagueForm(ctx, auctionStarted) {
     campiModo(modoScelto, modoScelto === (league.auctionMode || "live") ? league : {}),
 
     el("p.small.mute-2", { style: "margin:0" },
-      "La stagione sono i primi N Titled Tuesday dopo la chiusura dell'asta "
-      + "(dieci ≈ due mesi e mezzo). " + notaModo(modoScelto)),
+      (daBroadcast(league)
+        ? "La stagione è il calendario del torneo: dura quanto lui. "
+        : "La stagione sono i primi N Titled Tuesday dopo la chiusura "
+          + "dell'asta (dieci ≈ due mesi e mezzo). ")
+      + notaModo(modoScelto)),
 
     auctionStarted && el("div.notice.warn",
       "L'asta è già iniziata: abbassare i crediti o la rosa può mandare qualcuno in negativo. "

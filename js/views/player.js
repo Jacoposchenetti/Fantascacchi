@@ -18,6 +18,7 @@
 import { el, modal, flag, spinner, presenceClass } from "../ui.js";
 import { fetchStats } from "../chesscom.js";
 import { ownerOf, memberName } from "../league.js";
+import { daTorneo } from "../fonte.js";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 
@@ -26,13 +27,19 @@ export function showPlayer(ctx, player, extra = null) {
   if (!player) return;
 
   modal((close) => {
-    const statsBox = el("div.pc-stats", spinner());
+    // Le statistiche live sono di chess.com e vanno per username. Uno
+    // scacchista di torneo classico e' un FIDE id: chiederlo a chess.com
+    // vuol dire aspettare un errore per mostrare "non raggiungibili".
+    const classico = daTorneo(player);
+    const statsBox = el("div.pc-stats", classico ? null : spinner());
 
-    fetchStats(player.id)
-      .then((s) => statsBox.replaceChildren(formatGrid(s), profileLink(s)))
-      .catch(() => statsBox.replaceChildren(
-        el("p.small.mute-2", { style: "margin:0" },
-          "Statistiche live non raggiungibili in questo momento.")));
+    if (!classico) {
+      fetchStats(player.id)
+        .then((s) => statsBox.replaceChildren(formatGrid(s), profileLink(s)))
+        .catch(() => statsBox.replaceChildren(
+          el("p.small.mute-2", { style: "margin:0" },
+            "Statistiche live non raggiungibili in questo momento.")));
+    }
 
     return el("div.pc",
       header(ctx, player, close),
@@ -49,11 +56,15 @@ export function showPlayer(ctx, player, extra = null) {
                 ratingChart(player)),
             )
           : el("p.small.mute-2",
-              // Due motivi diversi per non avere storico, e vanno distinti:
-              // uno e' un nome pescato a mano, l'altro e' un fuoriclasse che
-              // il Titled Tuesday non lo gioca. Il secondo e' un'informazione
-              // che serve prima di puntarci dei crediti.
-              player.fideRank
+              // Tre motivi diversi per non avere storico, e vanno distinti:
+              // un nome pescato a mano, un fuoriclasse che il Titled Tuesday
+              // non lo gioca, e chi viene da un torneo classico — dove lo
+              // storico non c'e' per costruzione, non per mancanza.
+              classico
+                ? `In gara in questo torneo${player.title ? ", " + player.title : ""}`
+                  + `, rating FIDE ${player.rating || "?"}. Lo storico dei Titled `
+                  + `Tuesday non lo riguarda: qui si gioca sulla scacchiera vera.`
+              : player.fideRank
                 ? `Nessuno storico: è fra i primi al mondo per rating FIDE, ma `
                   + `non ha giocato Titled Tuesday negli ultimi sei mesi. `
                   + `Comprarlo è una scommessa sul fatto che si presenti.`
@@ -80,8 +91,12 @@ function header(ctx, p, close) {
         // che si cerca per primo, e non si legge dal rating blitz.
         p.fideRank && el("span.badge.badge-gold", `n° ${p.fideRank} al mondo`)),
       el("div.pc-sub",
-        flag(p.country), " ", el("span.mono", p.username),
-        p.fide && el("span", ` · ${p.fide} FIDE`)),
+        // Le federazioni dei tornei classici sono sigle a tre lettere
+        // (IND, NED): flag() fa la bandierina solo con le due lettere ISO,
+        // quindi quando non ce la fa si mostra almeno la sigla.
+        flag(p.country) || (p.country ? el("span.mono", p.country) : null), " ",
+        p.username ? el("span.mono", p.username) : null,
+        p.fide && el("span", `${p.username ? " · " : ""}${p.fide} FIDE`)),
     ),
     el("button.pc-close", {
       type: "button", onclick: close, "aria-label": "Chiudi la scheda",

@@ -1,0 +1,65 @@
+# Archivio dei tornei classici, dalle dirette di Lichess.
+#
+# Sta separato da listone.yml perche' ha un ritmo diverso: i Titled Tuesday
+# sono uno a settimana, un torneo classico gioca un turno al giorno. Con
+# una passata settimanale i punti di un torneo in corso sarebbero sempre
+# vecchi di giorni.
+#
+# Gira due volte al giorno: la sera, quando i turni europei sono finiti, e
+# la mattina dopo, per chi gioca in fusi orari diversi. I tornei gia'
+# completi costano una chiamata a testa e vengono saltati, quindi il lavoro
+# vero lo fa solo quando c'e' davvero un torneo in corso.
+#
+# Per seguire un torneo nuovo: "Run workflow" con l'id della diretta
+# Lichess (quello nell'URL, es. lichess.org/broadcast/.../BLA70Vds), oppure
+# una riga in data/bc/seguiti.json.
+
+name: Archivio tornei classici
+
+on:
+  schedule:
+    - cron: "0 21 * * *"      # 21:00 UTC, turni europei finiti
+    - cron: "0 7 * * *"       # 07:00 UTC, il resto del mondo
+  workflow_dispatch:
+    inputs:
+      torneo:
+        description: "Id della diretta Lichess da aggiungere ai seguiti"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tornei
+  cancel-in-progress: false
+
+jobs:
+  archivia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Aggiungi il torneo richiesto
+        if: inputs.torneo != ''
+        run: python tools/build_broadcast.py --segui "${{ inputs.torneo }}"
+
+      - name: Aggiorna i tornei seguiti
+        run: python tools/build_broadcast.py --seguiti
+
+      - name: Committa solo se è cambiato qualcosa
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/bc
+          if git diff --cached --quiet; then
+            echo "Niente di nuovo nei tornei classici."
+          else
+            git commit -m "Aggiorna l'archivio dei tornei classici"
+            git push
+          fi

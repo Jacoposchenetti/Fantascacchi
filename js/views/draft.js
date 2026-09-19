@@ -17,6 +17,7 @@ import {
 } from "../draft.js";
 import { showPlayer } from "./player.js";
 import lobbyView from "./lobby.js";
+import { tipoRating } from "../fonte.js";
 
 let filtro = "";
 let ticker = null;
@@ -141,7 +142,7 @@ function listone(ctx, mio) {
                 el("span", p.name)),
               el("div.pmeta",
                 flag(p.country) && el("span", flag(p.country)),
-                el("span", `${p.rating} blitz`),
+                el("span", `${p.rating} ${tipoRating(p)}`),
                 p.window && el("span", `presente ${p.events}/${p.window}`))),
           ),
           el("div.pcard-side",

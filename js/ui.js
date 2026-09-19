@@ -43,6 +43,22 @@ function append(node, children) {
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
+/**
+ * Marca un contenitore che scorre in orizzontale — ma solo se scorre per
+ * davvero. La sfumatura sul bordo destro e' una promessa ("c'e' altro di
+ * la'"): messa su una tabella che ci sta tutta sarebbe una bugia.
+ *
+ * Il ResizeObserver muore con l'elemento: nessuno dei due resta appeso a
+ * un listener globale quando la vista viene ridisegnata.
+ */
+export function scorrimento(wrap) {
+  const controlla = () =>
+    wrap.classList.toggle("scorre", wrap.scrollWidth > wrap.clientWidth + 1);
+  requestAnimationFrame(controlla);
+  try { new ResizeObserver(controlla).observe(wrap); } catch { /* pazienza */ }
+  return wrap;
+}
+
 /** Svuota un nodo e ci mette dentro i figli passati. */
 export function render(root, ...children) {
   root.replaceChildren();

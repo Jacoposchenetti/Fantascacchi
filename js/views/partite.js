@@ -16,21 +16,44 @@ import { giaGiocata, dataLunga } from "../season.js";
 import { mostraPartita } from "./scacchiera.js";
 import livePanel, { inDiretta } from "./live.js";
 import telecronaca from "./telecronaca.js";
-
-// Un indice per torneo, tenuto finche' dura la scheda.
-const indici = new Map();
-
-async function indiceDi(evento) {
-  if (indici.has(evento)) return indici.get(evento);
-  const attesa = fetch(`./data/tt/partite/${evento}.json`)
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  indici.set(evento, attesa);
-  return attesa;
-}
+import { caricaPartite, parole, daBroadcast } from "../fonte.js";
 
 let giornataScelta = null;
 let giocatoreScelto = null;
+
+/* Chi si sta venendo a cercare, arrivando da un'altra pagina. Si consuma
+   al primo elenco disegnato: e' un "portami li'", non uno stato. */
+let daScorrere = null;
+
+/**
+ * Entrata dall'esterno: apre le partite di una giornata gia' scorse fino
+ * alla sezione di un giocatore.
+ *
+ * Il filtro per giocatore si azzera di proposito. Chi arriva dal dettaglio
+ * di una giornata vuole vedere le partite di quel suo giocatore, ma con
+ * gli altri a portata di pollice: nasconderli sarebbe un vicolo cieco.
+ */
+export function apriPartiteSu(ctx, slot, playerId) {
+  giornataScelta = slot.n;
+  giocatoreScelto = null;
+  daScorrere = playerId;
+  ctx.go(`#/l/${ctx.league.id}/partite`);
+}
+
+function scorriAlGiocatore(dentro) {
+  if (!daScorrere) return;
+  const pid = daScorrere;
+  daScorrere = null;                       // un colpo solo, anche se fallisce
+  const sez = dentro.querySelector(`[data-gioc="${CSS.escape(pid)}"]`);
+  if (!sez) return;
+  // Dopo il frame: l'elenco e' appena entrato nel documento e senza
+  // impaginazione fatta scrollIntoView mira alla posizione sbagliata.
+  requestAnimationFrame(() => {
+    sez.scrollIntoView({ behavior: "smooth", block: "start" });
+    sez.classList.add("appena-arrivati");
+    setTimeout(() => sez.classList.remove("appena-arrivati"), 1600);
+  });
+}
 
 export default function partiteView(ctx) {
   const { league, catalog, plan, uid } = ctx;
@@ -60,14 +83,29 @@ export default function partiteView(ctx) {
   // viene prima di tutto. Sta qui e non in Giornate — che parla di
   // calendario e punteggi — perche' e' qui che uno viene per vedere.
   const inCorso = plan.slots.find((s) => inDiretta(s));
-  const diretta = inCorso
-    ? el("div.stack", { style: "gap:.8rem" },
-        el("div.section-head",
-          el("h2", "Si gioca adesso"),
-          el("span.badge.badge-red", `Giornata ${inCorso.n}`)),
-        telecronaca(),
-        livePanel(ctx, inCorso))
-    : null;
+  const testa = inCorso && el("div.section-head",
+    el("h2", "Si gioca adesso"),
+    el("span.badge.badge-red", `${parole(league).Giornata} ${inCorso.n}`));
+
+  // Il pannello in diretta e la telecronaca su Twitch sono roba di
+  // chess.com: sui tornei classici non c'e' niente da interrogare ogni
+  // trenta secondi e non c'e' un canale ufficiale da incorporare. C'e'
+  // pero' la diretta di Lichess, con le scacchiere che si muovono.
+  const diretta = !inCorso ? null
+    : daBroadcast(league)
+      ? el("div.stack", { style: "gap:.8rem" }, testa,
+          el("div.card.card-hi.stack-s",
+            el("p", { style: "margin:0" },
+              "Le scacchiere si muovono adesso sulla diretta di Lichess. "
+              + "Le partite finite compaiono qui sotto quando il turno si chiude."),
+            el("div.row",
+              el("a.btn.btn-primary", {
+                href: inCorso.url || "https://lichess.org/broadcast",
+                target: "_blank", rel: "noopener noreferrer",
+              }, "Segui la diretta ↗"))))
+      : el("div.stack", { style: "gap:.8rem" }, testa,
+          telecronaca(),
+          livePanel(ctx, inCorso));
 
   // Solo le giornate gia' giocate hanno partite da mostrare, e solo quelle
   // con un id sono tornei veri per cui esiste l'indice.
@@ -88,12 +126,14 @@ export default function partiteView(ctx) {
   const slot = giocate.find((s) => s.n === giornataScelta) || giocate[giocate.length - 1];
   giornataScelta = slot.n;
 
+  const p = parole(league);
   const miei = new Map(mia.map((r) => [r.playerId, r.player]));
   const elenco = el("div.stack-s", spinner());
 
   (async () => {
-    const dati = await indiceDi(slot.id);
+    const dati = await caricaPartite(slot, league);
     render(elenco, corpo(ctx, dati, miei, slot));
+    scorriAlGiocatore(elenco);
   })();
 
   return el("div.stack", { style: "gap:1.2rem" },
@@ -107,12 +147,15 @@ export default function partiteView(ctx) {
         + "scacchiera, mossa per mossa."),
 
       el("div.row", { style: "gap:.4rem" },
-        el("label.field", { style: "flex:1;min-width:11rem" }, "Giornata",
+        el("label.field", { style: "flex:1;min-width:11rem" }, p.Giornata,
           el("select", {
             onchange: (e) => { giornataScelta = Number(e.target.value); ctx.refresh(); },
           }, giocate.map((s) => el("option", {
             value: String(s.n), selected: s.n === slot.n,
-          }, `Giornata ${s.n} · ${dataLunga(s.date)}`)))),
+            // Il nome del torneo dice qualcosa ("Tata Steel Masters"); il
+            // nome di un turno e' "Round 7", che accanto a "Turno 7" e'
+            // solo rumore.
+          }, `${p.Giornata} ${s.n} · ${p.giornata === "turno" ? dataLunga(s.date) : (s.nome || dataLunga(s.date))}`)))),
 
         el("label.field", { style: "flex:1;min-width:11rem" }, "Giocatore",
           el("select", {
@@ -170,7 +213,7 @@ function corpo(ctx, dati, miei, slot) {
     const p = miei.get(pid);
     const v = sue.filter((r) => vinta(r)).length;
     const pa = sue.filter((r) => r.g.e === "d").length;
-    return el("section",
+    return el("section.gioc-sez", { "data-gioc": pid },
       el("div.section-head",
         el("h3", p?.name || pid),
         el("span.small.muted", `${v}V ${pa}P ${sue.length - v - pa}S`)),
@@ -184,7 +227,9 @@ const vinta = (r) => (r.g.e === "w" && r.mio === r.g.w) || (r.g.e === "b" && r.m
 function riga(r, slot, p) {
   const { g, mio } = r;
   const conIlBianco = mio === g.w;
-  const avversario = conIlBianco ? g.b : g.w;
+  // Nei tornei classici le chiavi sono FIDE id: senza il nome accanto uno
+  // leggerebbe "ha battuto fide:2020009".
+  const avversario = conIlBianco ? (g.bn || g.b) : (g.wn || g.w);
   const eloAvv = conIlBianco ? g.br : g.wr;
   const mioElo = conIlBianco ? g.wr : g.br;
   const esito = g.e === "d" ? "patta" : vinta(r) ? "vinta" : "persa";

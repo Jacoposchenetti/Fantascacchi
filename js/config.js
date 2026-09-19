@@ -124,3 +124,79 @@ export const SCORING = {
   ],
   upsetCap: 12,          // tetto per giornata: una serata d'oro non vale il triplo
 };
+
+/**
+ * Punteggi per una giornata che e' UN TURNO di torneo classico.
+ *
+ * Qui non esiste il "punteggio grezzo" 0..11: si gioca una partita sola e
+ * finisce in tre modi. Tarare questa tabella con la logica dei Titled
+ * Tuesday non funzionava — "almeno 9 punti" su una partita non vuol dire
+ * niente — quindi e' una tabella a se', con i suoi conti.
+ */
+export const SCORING_TURNO = {
+  modo: "turno",
+
+  win: 15,
+  draw: 6,
+  loss: 0,
+
+  // Vincere col nero e' piu' difficile, e negli scacchi lo sanno tutti:
+  // e' il bonus che fa guardare il colore prima di schierare.
+  neroBonus: 3,
+
+  // Come sta andando il torneo, letto dopo questo turno.
+  leader: 4,
+  podio: 2,
+
+  captainMultiplier: 2,
+  absent: 0,            // turno di riposo, bye, o eliminato
+
+  upset: [
+    { gap: 300, bonus: 6 },
+    { gap: 200, bonus: 4 },
+    { gap: 100, bonus: 2 },
+  ],
+  upsetCap: 12,
+
+  duelWin: 3,
+  duelLoss: -2,
+  duelDraw: 0,
+};
+
+/**
+ * Punteggi per una giornata che e' UN TORNEO CLASSICO INTERO (circuito).
+ *
+ * Stessa forma dei Titled Tuesday, ma le soglie sono frazioni invece che
+ * numeri fissi: un open va da nove a tredici turni, e "almeno 9 punti"
+ * significherebbe l'en plein in un torneo e una mezza stagione in un altro.
+ */
+export const SCORING_CLASSICO = {
+  perPoint: 8,          // un punto in un classico costa molta piu' fatica
+  placement: [
+    { max: 1,  bonus: 30 },
+    { max: 2,  bonus: 22 },
+    { max: 3,  bonus: 16 },
+    { max: 10, bonus: 8 },
+    { max: 25, bonus: 4 },
+    { max: 50, bonus: 2 },
+  ],
+  perfectScore: 30,
+  // Frazioni dei turni giocati, non punti assoluti.
+  strongRatio: 0.7,
+  strongScore: 8,
+  weakRatio: 0.4,
+  weakScore: -4,
+  captainMultiplier: 2,
+  absent: 0,
+
+  duelWin: 3,
+  duelLoss: -2,
+  duelDraw: 0,
+
+  upset: [
+    { gap: 300, bonus: 6 },
+    { gap: 200, bonus: 4 },
+    { gap: 100, bonus: 2 },
+  ],
+  upsetCap: 12,
+};

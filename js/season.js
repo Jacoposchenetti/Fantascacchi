@@ -12,6 +12,11 @@
    piu' di due ore. Quindi le date future si prevedono, e gli schieramenti
    si chiudono da soli all'ora d'inizio senza che nessuno intervenga.
 
+   Le altre fonti non si prevedono e non ne hanno bisogno: i turni di un
+   torneo classico hanno una data ciascuno, gia' pubblicata, e un torneo
+   non ancora annunciato non esiste. Chi porta il calendario e' fonte.js;
+   qui si decide solo cosa farne (`prevedi`).
+
    I risultati arrivano da file statici pubblicati dalla GitHub Action
    (circa 6 KB l'uno). Nella finestra fra la fine del torneo e il passaggio
    dell'Action, l'app ripiega su chess.com in diretta: costa di piu', ma
@@ -20,6 +25,8 @@
 
 import { discoverTitledTuesdays, fetchStandings } from "./chesscom.js";
 import { rosterOf } from "./league.js";
+import { caricaCalendario, fileRisultati, fonteDi } from "./fonte.js";
+import { turnoDiretto } from "./lichess.js";
 
 /** I Titled Tuesday partono alle 15:00 UTC. Verificato su sei mesi di tornei. */
 const TT_HOUR_UTC = 15;
@@ -35,18 +42,20 @@ const _results = new Map();
 
 /* ------------------------------- calendario ---------------------------- */
 
-/** Indice dei tornei con risultati gia' pubblicati. */
-export async function loadCalendar() {
-  if (_calendar) return _calendar;
+/**
+ * Il calendario grezzo della lega, qualunque sia la fonte.
+ *
+ * Non si tiene piu' una copia sola qui dentro: due leghe aperte nella
+ * stessa sessione possono avere fonti diverse, e la cache di `fonte.js`
+ * lavora gia' per URL, quindi rileggere non costa una chiamata in piu'.
+ */
+export async function loadCalendar(league) {
   try {
-    const res = await fetch("./data/tt/index.json", { cache: "no-cache" });
-    if (!res.ok) throw new Error(String(res.status));
-    _calendar = await res.json();
+    return await caricaCalendario(league);
   } catch {
     // Senza indice la stagione resta vuota, ma l'app non si rompe.
-    _calendar = { events: [] };
+    return { events: [], prevedi: false };
   }
-  return _calendar;
 }
 
 /** Il martedi' alle 15:00 UTC successivo o uguale a `from`. */
@@ -70,10 +79,21 @@ export function seasonPlan(league, calendar, now = Date.now()) {
   const startsAt = league?.season?.startsAt || 0;
   const total = league?.season?.matchdays || DEFAULT_MATCHDAYS;
 
-  const real = (calendar?.events || [])
+  const tutte = (calendar?.events || [])
     .filter((e) => e.start && e.start * 1000 >= startsAt)
-    .sort((a, b) => (a.start || 0) - (b.start || 0))
-    .slice(0, total);
+    .sort((a, b) => (a.start || 0) - (b.start || 0));
+
+  // Il numero di giornate lo decide chi crea la lega solo quando le
+  // giornate si possono inventare. Un torneo classico dura quanto dura:
+  // tagliare i Candidati a dieci turni perche' e' il valore predefinito
+  // sarebbe una stagione che finisce a meta' torneo.
+  const real = calendar?.prevedi ? tutte.slice(0, total) : tutte;
+
+  // La prima casella non ancora archiviata e' quella che accetta le
+  // formazioni. Coi Titled Tuesday non capita mai — l'indice contiene solo
+  // tornei finiti — ma i turni di un torneo classico si conoscono tutti fin
+  // dal primo giorno, date comprese, e restano li' in attesa di giocarsi.
+  const primaDaGiocare = real.findIndex((e) => !e.archiviato);
 
   const slots = real.map((e, i) => ({
     n: i + 1,
@@ -83,11 +103,29 @@ export function seasonPlan(league, calendar, now = Date.now()) {
     rounds: e.rounds || 11,
     played: e.played,
     total: e.total,
-    status: "scored",
+    nome: e.nome || null,
+    durata: e.durata || null,
+    url: e.url || null,
+    status: e.archiviato
+      ? "scored"
+      : statoPrevisto(e.start * 1000, i === primaDaGiocare, now),
     estimated: false,
   }));
 
-  // Le caselle rimanenti sono martedi' previsti, uno a settimana.
+  // Le caselle rimanenti sono martedi' previsti, uno a settimana. Si
+  // possono prevedere solo i Titled Tuesday: un turno dei Candidati ha una
+  // data sua, e un torneo classico non ancora annunciato non esiste.
+  // Per le altre fonti la stagione e' lunga quanto il calendario che c'e'.
+  if (!calendar?.prevedi) {
+    return {
+      total: slots.length,
+      done: slots.filter((s) => s.status === "scored").length,
+      slots,
+      startsAt,
+      endsAt: slots.length ? slots[slots.length - 1].start + DURATA_MS : null,
+    };
+  }
+
   let cursor = slots.length
     ? slots[slots.length - 1].start + SETTIMANA_MS
     : nextTuesday(startsAt || now);
@@ -225,31 +263,42 @@ export const giaGiocata = (slot) =>
  * Prima il file statico; se manca (torneo appena finito) si prova in diretta.
  * @returns {Promise<{standings: Map, rounds, total, live} | null>}
  */
-export async function loadResults(slot, onProgress = () => {}) {
+export async function loadResults(slot, league = null, onProgress = () => {}) {
   if (!slot) return null;
   const key = slot.id || `slot-${slot.n}-${slot.date}`;
   if (_results.has(key)) return _results.get(key);
 
   let out = null;
+  const fonte = fonteDi(league);
 
   if (slot.id) {
-    out = await fromStatic(slot.id);
-  } else if (slot.status === "pending" && Date.now() > slot.start + DURATA_MS) {
+    out = await fromStatic(slot, league);
+  }
+
+  // Niente file: il torneo e' finito ma l'archivio non e' ancora passato.
+  if (!out && slot.status === "pending" && Date.now() > slot.start + DURATA_MS) {
     // Solo a torneo finito: durante le partite la classifica e' parziale.
-    out = await fromLive(slot, onProgress);
+    out = fonte.tipo === "tt"
+      ? await fromLive(slot, onProgress)
+      : await turnoDiretto(slot, fonte, onProgress);
   }
 
   if (out) _results.set(key, out);
   return out;
 }
 
-async function fromStatic(id) {
+async function fromStatic(slot, league) {
+  const url = fileRisultati(slot, league);
+  if (!url) return null;
   try {
-    const res = await fetch(`./data/tt/${id}.json`, { cache: "force-cache" });
+    const res = await fetch(url, { cache: "force-cache" });
     if (!res.ok) return null;
     const ev = await res.json();
+    // Terna invece di coppia per i turni di torneo classico: il terzo
+    // posto e' il colore, e serve al bonus "vittoria col nero".
     const standings = new Map(
-      Object.entries(ev.standings || {}).map(([u, [p, r]]) => [u, { points: p, rank: r }]),
+      Object.entries(ev.standings || {}).map(
+        ([u, [p, r, c]]) => [u, { points: p, rank: r, color: c || null }]),
     );
     return {
       standings, h2h: ev.h2h || [], upsets: ev.upsets || [],

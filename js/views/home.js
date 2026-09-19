@@ -2,6 +2,7 @@ import { el, toast } from "../ui.js";
 import { DEFAULTS } from "../config.js";
 import { AUCTION_MODES } from "../config.js";
 import { campiModo, applicaCampiModo } from "./modeparams.js";
+import { FONTI, torneiDisponibili } from "../fonte.js";
 import myLeaguesSection from "./myleagues.js";
 import openLeaguesSection from "./openleagues.js";
 
@@ -13,7 +14,8 @@ export default function homeView(ctx) {
       el("h1", "Fantascacchi"),
       el("p.lede",
         "La fanta-lega sugli scacchisti veri. Fate l'asta, schierate la formazione, ",
-        "e ogni martedì i punti arrivano da soli dai Titled Tuesday di chess.com."),
+        "e i punti arrivano da soli: dai Titled Tuesday di chess.com o dai ",
+        "tornei classici, turno per turno."),
       el("div.row", { style: "justify-content:center" },
         el("button.btn.btn-primary.btn-lg", { onclick: () => openCreate(ctx) }, "Crea una lega"),
         el("button.btn.btn-lg", { onclick: () => openJoin(ctx) }, "Entra con un codice"),
@@ -39,8 +41,8 @@ export default function homeView(ctx) {
         el("button.btn.btn-sm", { onclick: () => ctx.go("#/demo") }, "Provala")),
       el("div.grid",
         step("1", "Asta", "Ognuno ha un budget in crediti. Si nomina un giocatore a turno e si rilancia: chi offre di più se lo porta a casa. Ogni scacchista può appartenere a un solo partecipante."),
-        step("2", "Formazione", "Prima di ogni Titled Tuesday scegli chi schierare e chi nominare capitano. Il capitano raddoppia. Chi non gioca il torneo viene sostituito dalla panchina."),
-        step("3", "Punti", "A torneo finito l'app scarica la classifica reale da chess.com e calcola i fantapunti: punteggio nel torneo, bonus piazzamento, en plein, malus per le giornate storte."),
+        step("2", "Formazione", "Prima di ogni giornata scegli chi schierare e chi nominare capitano. Il capitano raddoppia, e se non gioca la fascia passa al vice. Chi non scende in campo viene sostituito dalla panchina."),
+        step("3", "Punti", "A giornata finita l'app legge i risultati veri — chess.com per i Titled Tuesday, le dirette di Lichess per i tornei classici — e calcola i fantapunti: risultato, piazzamento, imprese contro i più forti, scontri diretti."),
       ),
     ),
   );
@@ -83,6 +85,12 @@ function openCreate(ctx) {
         e("p.muted.small", { style: "margin:0" },
           "I titolari devono essere meno dei giocatori in rosa: la differenza è la panchina."),
 
+        e("label.field", "Su cosa si gioca",
+          e("select", { name: "fonte", onchange: aggiornaFonte },
+            FONTI.map((f) => e("option", { value: f.id }, f.nome)))),
+        e("p.muted.small", { id: "fonte-desc", style: "margin:0" }, FONTI[0].desc),
+        e("div", { id: "fonte-params" }),
+
         e("label.field", "Come si compongono le rose",
           e("select", { name: "modo", onchange: aggiornaModo },
             AUCTION_MODES.map((m) => e("option", { value: m.id }, m.nome)))),
@@ -100,6 +108,50 @@ function openCreate(ctx) {
           e("button.btn.btn-primary", { type: "submit" }, "Crea"),
         ),
       );
+
+      // I tornei in archivio si chiedono una volta sola, alla prima fonte
+      // che li vuole: chi crea una lega sui Titled Tuesday non deve
+      // aspettare una richiesta che non gli serve.
+      let elenco = null;
+      async function tornei() {
+        if (!elenco) elenco = await torneiDisponibili();
+        return elenco;
+      }
+
+      async function aggiornaFonte(ev) {
+        const id = ev.target.value;
+        const f = FONTI.find((x) => x.id === id);
+        const p = form.querySelector("#fonte-desc");
+        if (f && p) p.textContent = f.desc;
+
+        const dove = form.querySelector("#fonte-params");
+        if (id === "tt") { render(dove); return; }
+
+        render(dove, e("p.muted.small", { style: "margin:.4rem 0 0" },
+          "Cerco i tornei in archivio…"));
+        const lista = await tornei();
+        if (form.querySelector('[name=fonte]').value !== id) return;  // cambiata nel frattempo
+
+        if (!lista.length) {
+          render(dove, e("div.notice",
+            "Non c'è ancora nessun torneo classico in archivio. ",
+            "Li pubblica l'aggiornamento automatico: riprova più tardi, "
+            + "oppure gioca sui Titled Tuesday."));
+          return;
+        }
+
+        render(dove, id === "torneo"
+          ? e("label.field", { style: "margin-top:.4rem" }, "Quale torneo",
+              e("select", { name: "tour" },
+                lista.map((t) => e("option", { value: t.id },
+                  `${t.name} · ${t.rounds} turni · ${t.players} giocatori`))))
+          : e("div.stack-s", { style: "margin-top:.4rem" },
+              e("div.small.muted", "Quali tornei fanno stagione"),
+              ...lista.map((t) => e("label.row", { style: "gap:.5rem;font-size:.9rem" },
+                e("input", { type: "checkbox", name: "tours", value: t.id,
+                  style: "width:auto" }),
+                `${t.name} · ${t.rounds} turni`))));
+      }
 
       function aggiornaModo(ev) {
         const modo = ev.target.value;
@@ -125,6 +177,17 @@ function openCreate(ctx) {
           await ctx.store.setName(String(f.get("user")).trim());
           const extra = { auctionMode: String(f.get("modo") || "live") };
           applicaCampiModo(extra, f);
+
+          const tipo = String(f.get("fonte") || "tt");
+          if (tipo === "torneo") {
+            const tour = String(f.get("tour") || "");
+            if (!tour) throw new Error("Scegli il torneo su cui giocare");
+            extra.fonte = { tipo, tour };
+          } else if (tipo === "circuito") {
+            const tours = f.getAll("tours").map(String);
+            if (!tours.length) throw new Error("Scegli almeno un torneo");
+            extra.fonte = { tipo, tours };
+          }
           const id = await ctx.store.createLeague({
             name: String(f.get("name")).trim(),
             budget: Number(f.get("budget")),

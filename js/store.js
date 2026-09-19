@@ -24,7 +24,7 @@ const LS_BIDS = (id) => `fsc:bids:${id}`;
 /** Scheletro di una lega nuova. */
 export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
                             bidSeconds, turnSeconds, auctionMode, sealedHours,
-                            draftSeconds, salaryDays, open }) {
+                            draftSeconds, salaryDays, open, fonte }) {
   const id = shortId(6);
   return {
     id,
@@ -67,8 +67,13 @@ export function newLeague({ name, uid, userName, budget, rosterSize, lineupSize,
     salaryRosters: {},
     salary: { deadline: 0 },
     salaryDays: salaryDays ?? DEFAULTS.salaryDays,
+    // Su cosa si gioca: i Titled Tuesday, un torneo classico turno per
+    // turno, o un circuito di tornei classici. Assente = Titled Tuesday,
+    // perche' e' cosi' che erano tutte le leghe prima che ce ne fossero
+    // altre e devono continuare a funzionare da sole.
+    fonte: fonte || { tipo: "tt" },
     // La stagione parte quando si chiude l'asta: da li' in poi le giornate
-    // si generano da sole dai Titled Tuesday che arrivano.
+    // si generano da sole dagli eventi della fonte.
     season: { startsAt: 0, matchdays: DEFAULTS.matchdays },
   };
 }

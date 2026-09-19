@@ -29,7 +29,7 @@ import { invia } from "./push.js";
 // (tools/sync_condiviso.mjs). Riscriverla a mano significherebbe due
 // implementazioni che prima o poi assegnano giocatori diversi.
 import { risolvi, applica, DEFAULT_ORE } from "./condiviso/sealed.js";
-import { avviaAstaLive, members } from "./condiviso/league.js";
+import { avviaAstaLive, members, fonteDi } from "./condiviso/league.js";
 import {
   uids, nome, nominator, chiSceglie, daCompletare,
   numeroGiornata, slotDocId, nextTuesday,
@@ -325,13 +325,17 @@ async function scadenze(db, lg, id, now, fatti, nuovi) {
     }
   }
 
-  /* --- stagione: oggi c'e' Titled Tuesday e non hai schierato --- */
+  /* --- stagione: si gioca fra poco e non hai schierato --- */
   if (lg.phase === "season" && lg.season?.startsAt) {
-    const inizio = nextTuesday(now - ORA);       // il torneo di oggi, se c'e'
-    const manca = inizio - now;
-    const n = numeroGiornata(lg.season.startsAt, now);
+    // Coi Titled Tuesday la prossima giornata si calcola: sono martedi'
+    // consecutivi. Con un torneo classico no — i turni hanno le loro date —
+    // e mandare un promemoria di martedi' a chi gioca i Candidati vorrebbe
+    // dire svegliare la gente per una giornata che non c'e'.
+    const prossima = await prossimaGiornata(lg, now);
+    const manca = prossima ? prossima.inizio - now : -1;
+    const n = prossima?.n || null;
     const chiave = `g${n}`;
-    if (n && n <= (lg.season.matchdays || 10)
+    if (n && (fonteDi(lg).tipo !== "tt" || n <= (lg.season.matchdays || 10))
       && manca > 0 && manca <= 3 * ORA && fatti.formazione !== chiave) {
       const md = await db.collection("leagues").doc(id)
         .collection("matchdays").doc(slotDocId(n)).get();
@@ -340,7 +344,7 @@ async function scadenze(db, lg, id, now, fatti, nuovi) {
       if (scordati.length) {
         out.push({
           a: scordati, titolo,
-          corpo: `Titled Tuesday fra poche ore e non hai schierato la `
+          corpo: `Si gioca fra poche ore e non hai schierato la `
             + `formazione della giornata ${n}.`,
           tag: `formazione-${id}`, url: link(id, "formazione"),
         });
@@ -353,6 +357,46 @@ async function scadenze(db, lg, id, now, fatti, nuovi) {
 }
 
 
+/**
+ * La prossima giornata della lega e quando comincia.
+ *
+ * @returns {{n:number, inizio:number}|null}
+ */
+async function prossimaGiornata(lg, now) {
+  const f = fonteDi(lg);
+
+  if (f.tipo === "tt") {
+    const n = numeroGiornata(lg.season.startsAt, now);
+    return n ? { n, inizio: nextTuesday(now - ORA) } : null;
+  }
+
+  // Le date vere stanno nell'archivio pubblicato, lo stesso che legge il
+  // browser: cosi' client e server contano le giornate allo stesso modo.
+  const tours = f.tipo === "torneo" ? [f.tour] : (f.tours || []);
+  const caselle = [];
+  for (const t of tours.filter(Boolean)) {
+    let m;
+    try {
+      m = await fileJson(`${SITO}/data/bc/${t}/index.json`);
+    } catch {
+      continue;
+    }
+    if (f.tipo === "torneo") {
+      for (const r of m.rounds || []) caselle.push((r.start || 0) * 1000);
+    } else {
+      caselle.push((m.dates || [0])[0] || 0);
+    }
+  }
+
+  // Stesso filtro del piano lato client: contano solo le caselle dalla
+  // chiusura dell'asta in poi, e la numerazione parte da li'.
+  const dopo = caselle
+    .filter((ms) => ms >= (lg.season.startsAt || 0))
+    .sort((a, b) => a - b);
+  const i = dopo.findIndex((ms) => ms > now);
+  return i >= 0 ? { n: i + 1, inizio: dopo[i] } : null;
+}
+
 /* ==================== buste chiuse: risoluzione d'ufficio ============== */
 
 /**
@@ -360,20 +404,53 @@ async function scadenze(db, lg, id, now, fatti, nuovi) {
  * Si prende dal sito pubblicato, cosi' e' sempre quello aggiornato dalla
  * GitHub Action del mercoledi' invece di una copia congelata nel bundle.
  */
-const LISTONE_URL =
-  "https://jacoposchenetti.github.io/Fantascacchi/data/listone.json";
-let listoneCache = { quando: 0, players: null };
+// L'archivio pubblicato. Si puo' puntare altrove con una variabile
+// d'ambiente: serve alle prove, che girano contro il server locale invece
+// che contro GitHub Pages.
+const SITO = process.env.FANTASCACCHI_SITO
+  || "https://jacoposchenetti.github.io/Fantascacchi";
 
-async function listone() {
-  const ORA_MS = 60 * 60 * 1000;
-  if (listoneCache.players && Date.now() - listoneCache.quando < ORA_MS) {
-    return listoneCache.players;
+const ORA_MS = 60 * 60 * 1000;
+const fileCache = new Map();          // url -> { quando, dati }
+
+async function fileJson(url) {
+  const c = fileCache.get(url);
+  if (c && Date.now() - c.quando < ORA_MS) return c.dati;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url} non raggiungibile (${r.status})`);
+  const dati = await r.json();
+  fileCache.set(url, { quando: Date.now(), dati });
+  return dati;
+}
+
+/**
+ * Il listone della lega, che dipende da su cosa si gioca.
+ *
+ * Prima era uno solo, quello dei Titled Tuesday. Con le leghe sui tornei
+ * classici sarebbe stato il bug peggiore possibile: le buste chiuse le
+ * risolve anche il server, e con il listone sbagliato avrebbe assegnato
+ * d'ufficio giocatori che in quella lega non esistono nemmeno.
+ */
+async function listone(lg) {
+  const f = fonteDi(lg);
+  if (f.tipo === "tt") {
+    return (await fileJson(`${SITO}/data/listone.json`)).players || [];
   }
-  const r = await fetch(LISTONE_URL);
-  if (!r.ok) throw new Error(`listone non raggiungibile (${r.status})`);
-  const d = await r.json();
-  listoneCache = { quando: Date.now(), players: d.players || [] };
-  return listoneCache.players;
+
+  const tours = f.tipo === "torneo" ? [f.tour] : (f.tours || []);
+  const metas = await Promise.all(
+    tours.filter(Boolean).map((t) => fileJson(`${SITO}/data/bc/${t}/index.json`)));
+
+  // Nel circuito lo stesso giocatore compare in piu' tornei: vale una volta
+  // sola, col rating piu' alto. Stessa regola del client.
+  const per = new Map();
+  for (const m of metas) {
+    for (const p of m.players || []) {
+      const prima = per.get(p.id);
+      if (!prima || (p.rating || 0) > (prima.rating || 0)) per.set(p.id, p);
+    }
+  }
+  return [...per.values()];
 }
 
 /**
@@ -400,7 +477,7 @@ export async function risolviBusteScadute(db, lg, id, now) {
 
   const ref = db.collection("leagues").doc(id);
   const buste = await ref.collection("bids").get();
-  const catalogo = await listone();
+  const catalogo = await listone(lg);
 
   let chiuso = false;
   await db.runTransaction(async (tx) => {

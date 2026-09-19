@@ -6,7 +6,8 @@
    dal primo panchinaro disponibile, esattamente come nel fantacalcio.
    --------------------------------------------------------------- */
 
-import { SCORING } from "./config.js";
+import { SCORING, SCORING_TURNO, SCORING_CLASSICO } from "./config.js";
+import { fonteDi } from "./fonte.js";
 
 /**
  * Punteggio di un singolo giocatore in una giornata.
@@ -14,10 +15,21 @@ import { SCORING } from "./config.js";
  * @param {object} rules
  * @param {number} rounds turni del torneo (per capire cos'e' "en plein")
  */
+export function regole(league) {
+  const tipo = fonteDi(league).tipo;
+  if (tipo === "torneo") return SCORING_TURNO;
+  if (tipo === "circuito") return SCORING_CLASSICO;
+  return SCORING;
+}
+
 export function scorePlayer(res, rules = SCORING, rounds = 11) {
   if (!res || !res.played) {
     return { total: rules.absent, absent: true, breakdown: [] };
   }
+
+  // Una partita sola non si giudica come un torneo di undici: ha una
+  // tabella sua, qui accanto.
+  if (rules.modo === "turno") return puntiDelTurno(res, rules);
 
   const pts = Number(res.points) || 0;
   const breakdown = [
@@ -31,32 +43,66 @@ export function scorePlayer(res, rules = SCORING, rounds = 11) {
     }
   }
 
+  // I tornei classici durano da nove a tredici turni: le soglie si dicono
+  // in frazione, altrimenti "almeno 9 punti" e' un traguardo in un torneo
+  // e l'en plein in quello dopo.
+  const soglieAlta = rules.strongRatio != null
+    ? arrotondaMezzo(rounds * rules.strongRatio) : rules.strongScoreMin;
+  const sogliaBassa = rules.weakRatio != null
+    ? arrotondaMezzo(rounds * rules.weakRatio) : rules.weakScoreMax;
+
   if (pts >= rounds) {
     breakdown.push({ label: "En plein", pts: rules.perfectScore });
-  } else if (pts >= rules.strongScoreMin) {
-    breakdown.push({ label: `Almeno ${fmtScore(rules.strongScoreMin)} punti`, pts: rules.strongScore });
+  } else if (pts >= soglieAlta) {
+    breakdown.push({ label: `Almeno ${fmtScore(soglieAlta)} punti`, pts: rules.strongScore });
   }
 
-  if (pts < rules.weakScoreMax) {
-    breakdown.push({ label: `Sotto ${fmtScore(rules.weakScoreMax)} punti`, pts: rules.weakScore });
+  if (pts < sogliaBassa) {
+    breakdown.push({ label: `Sotto ${fmtScore(sogliaBassa)} punti`, pts: rules.weakScore });
   }
 
-  // Imprese: ogni partita vinta contro un avversario molto piu' forte.
-  // res.upsets e' la lista dei divari di rating (es. [180, 260]).
-  const imprese = Array.isArray(res.upsets) ? res.upsets : [];
-  let bonusImprese = 0;
-  for (const gap of imprese) {
-    const t = rules.upset.find((x) => gap >= x.gap);
-    if (t) bonusImprese += t.bonus;
-  }
-  bonusImprese = Math.min(bonusImprese, rules.upsetCap);
-  if (bonusImprese > 0) {
-    const n = imprese.filter((g) => g >= rules.upset[rules.upset.length - 1].gap).length;
-    breakdown.push({ label: `${n} impres${n === 1 ? "a" : "e"} (batte più forti)`, pts: bonusImprese });
-  }
+  const impresa = bonusImprese(res.upsets, rules);
+  if (impresa) breakdown.push(impresa);
 
   const total = breakdown.reduce((s, b) => s + b.pts, 0);
   return { total: round1(total), absent: false, breakdown };
+}
+
+/**
+ * Punteggio di un giocatore in UN TURNO di torneo classico.
+ *
+ * `res.points` vale 1, 0.5 o 0 — il risultato della sua partita — e
+ * `res.color` dice da che parte stava, perche' vincere col nero vale di
+ * piu'. Il piazzamento e' quello nel torneo dopo il turno: dice se il tuo
+ * sta comandando, che e' l'informazione che uno cerca a fine giornata.
+ */
+function puntiDelTurno(res, rules) {
+  const pts = Number(res.points) || 0;
+  const esito = pts >= 1 ? "vinta" : pts > 0 ? "patta" : "persa";
+
+  const breakdown = [{
+    label: { vinta: "Vittoria", patta: "Patta", persa: "Sconfitta" }[esito],
+    pts: { vinta: rules.win, patta: rules.draw, persa: rules.loss }[esito],
+  }];
+
+  if (esito === "vinta" && res.color === "b") {
+    breakdown.push({ label: "Vittoria col nero", pts: rules.neroBonus });
+  }
+
+  if (res.rank === 1) {
+    breakdown.push({ label: "In testa al torneo", pts: rules.leader });
+  } else if (res.rank && res.rank <= 3) {
+    breakdown.push({ label: `${res.rank}° nel torneo`, pts: rules.podio });
+  }
+
+  const bonus = bonusImprese(res.upsets, rules);
+  if (bonus) breakdown.push(bonus);
+
+  return {
+    total: round1(breakdown.reduce((s, b) => s + b.pts, 0)),
+    absent: false,
+    breakdown,
+  };
 }
 
 /**
@@ -221,7 +267,26 @@ export function resultsFromStandings(playerIds, standings, total) {
   return map;
 }
 
+/**
+ * Imprese: ogni partita vinta contro un avversario molto piu' forte.
+ * `upsets` e' la lista dei divari di rating (es. [180, 260]).
+ */
+function bonusImprese(upsets, rules) {
+  const imprese = Array.isArray(upsets) ? upsets : [];
+  let tot = 0;
+  for (const gap of imprese) {
+    const t = rules.upset.find((x) => gap >= x.gap);
+    if (t) tot += t.bonus;
+  }
+  tot = Math.min(tot, rules.upsetCap);
+  if (tot <= 0) return null;
+  const n = imprese.filter((g) => g >= rules.upset[rules.upset.length - 1].gap).length;
+  return { label: `${n} impres${n === 1 ? "a" : "e"} (batte più forti)`, pts: tot };
+}
+
 const round1 = (n) => Math.round(n * 10) / 10;
+/** Alle mezze unita': i punteggi degli scacchi non hanno decimali diversi. */
+const arrotondaMezzo = (n) => Math.round(n * 2) / 2;
 const fmtScore = (n) => (Number.isInteger(n) ? String(n) : String(n));
 
 function ordinale(n) { return `${n}°`; }

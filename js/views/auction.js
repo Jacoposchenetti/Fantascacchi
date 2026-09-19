@@ -25,6 +25,7 @@ import lobbyView from "./lobby.js";
 import sealedView from "./sealed.js";
 import draftView from "./draft.js";
 import salaryView from "./salary.js";
+import { tipoRating } from "../fonte.js";
 
 let filter = "";
 let onlyFree = true;
@@ -233,7 +234,7 @@ function lotStage(ctx, a) {
           p?.title ? el("span.title-tag", { class: titleClass(p.title) }, p.title) : null,
           " " + (p?.name || a.playerId)),
         el("div.muted.small",
-          flag(p?.country), " ", p?.rating ? `${p.rating} blitz` : "",
+          flag(p?.country), " ", p?.rating ? `${p.rating} ${tipoRating(p)}` : "",
           p?.avgPoints ? ` · ${p.avgPoints}/11 quando gioca` : "",
           p?.window ? el("span", { class: presenceClass(p) },
             ` · presente ${p.events}/${p.window}`) : ""),
@@ -611,7 +612,7 @@ function playerRow(ctx, p, myTurn) {
           p.fideRank && el("span.badge.badge-gold", `n° ${p.fideRank}`)),
         el("div.pmeta",
           flag(p.country) && el("span", flag(p.country)),
-          el("span", `${p.rating} blitz`),
+          el("span", `${p.rating} ${tipoRating(p)}`),
           p.avgPoints ? el("span", `${p.avgPoints}/11 quando gioca`) : null,
           p.window ? el("span", { class: presenceClass(p) },
             `presente ${p.events}/${p.window}`) : null,

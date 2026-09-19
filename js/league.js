@@ -2,20 +2,6 @@
 
 import { PRESENCE_TTL } from "./config.js";
 
-let _listone = null;
-
-/** Carica il listone (una volta) e lo fonde con eventuali giocatori aggiunti a mano. */
-export async function loadCatalog(league) {
-  if (!_listone) {
-    const res = await fetch("./data/listone.json");
-    if (!res.ok) throw new Error("Listone non caricabile (data/listone.json)");
-    _listone = await res.json();
-  }
-  const map = new Map();
-  for (const p of _listone.players) map.set(p.id, p);
-  for (const p of Object.values(league?.customPlayers || {})) map.set(p.id, p);
-  return { map, meta: _listone };
-}
 
 export function catalogList(catalog) {
   return [...catalog.map.values()];
@@ -28,6 +14,25 @@ export function catalogList(catalog) {
  * usano `roster` (esclusivo, un giocatore un proprietario), salary usa
  * `salaryRosters` (non esclusivo).
  */
+/**
+ * La fonte di una lega, normalizzata.
+ *
+ * Sta qui e non in fonte.js perche' league.js e' fra i moduli copiati
+ * dentro le Cloud Functions: l'asta a buste la risolve anche il server, e
+ * deve sapere da che listone pescare. Due definizioni di "fonte" che
+ * divergono vorrebbero dire due aste che assegnano giocatori diversi.
+ *
+ * Le leghe create prima che esistessero le altre fonti non hanno il campo:
+ * sono Titled Tuesday, e continuano a funzionare senza che nessuno le tocchi.
+ */
+export function fonteDi(league) {
+  const f = league?.fonte;
+  if (!f || !f.tipo || f.tipo === "tt") return { tipo: "tt" };
+  if (f.tipo === "torneo") return { tipo: "torneo", tour: f.tour || null };
+  if (f.tipo === "circuito") return { tipo: "circuito", tours: f.tours || [] };
+  return { tipo: "tt" };
+}
+
 export function rosterEntries(league, uid) {
   if (league?.auctionMode === "salary") {
     return Object.entries(league?.salaryRosters?.[uid] || {})

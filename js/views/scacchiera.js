@@ -16,6 +16,7 @@
 
 import { el, modal } from "../ui.js";
 import { partiteDelTurno } from "../chesscom.js";
+import { partitaDelTurno } from "../lichess.js";
 import { valuta, spegni, quotaBianco, etichetta } from "../motore.js";
 
 const CHESS_JS = "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm";
@@ -34,6 +35,9 @@ async function motore() {
  * Apre la partita in sovrimpressione.
  *
  * @param riga     una voce dell'indice: { w, b, wr, br, e, t, g, id, eco }
+ *                 Le partite dei tornei classici portano in piu' `r`, il
+ *                 turno su Lichess: e' da li' che si capisce dove andare a
+ *                 prendere le mosse, senza doversi passare la fonte.
  * @param evento   l'id del torneo su chess.com
  * @param mio      username del giocatore in rosa (la scacchiera si gira
  *                 dalla sua parte: si segue meglio la partita di chi tifi)
@@ -45,12 +49,15 @@ export function mostraPartita(riga, evento, mio = null) {
 
     (async () => {
       try {
-        const [Motore, gruppo] = await Promise.all([
+        const [Motore, partita] = await Promise.all([
           motore(),
-          partiteDelTurno(evento, riga.t, riga.g),
+          riga.r
+            ? partitaDelTurno(riga.r, riga.id)
+            : partiteDelTurno(evento, riga.t, riga.g).then((gr) => gr.get(riga.id)),
         ]);
-        const partita = gruppo.get(riga.id);
-        if (!partita?.pgn) throw new Error("Partita non trovata su chess.com");
+        if (!partita?.pgn) {
+          throw new Error(`Partita non trovata su ${riga.r ? "Lichess" : "chess.com"}`);
+        }
 
         const g = new Motore();
         g.loadPgn(partita.pgn);
@@ -70,9 +77,9 @@ export function mostraPartita(riga, evento, mio = null) {
           el("p.muted", { style: "margin:0" },
             err?.message || "Non sono riuscito a caricare la partita."),
           el("a.btn.btn-sm", {
-            href: `https://www.chess.com/game/live/${riga.id}`,
+            href: linkPartita(riga),
             target: "_blank", rel: "noopener noreferrer",
-          }, "Aprila su chess.com ↗"),
+          }, `Aprila su ${riga.r ? "Lichess" : "chess.com"} ↗`),
           el("div.row", { style: "justify-content:flex-end" },
             el("button.btn.btn-ghost", { onclick: close }, "Chiudi")),
         ));
@@ -82,6 +89,11 @@ export function mostraPartita(riga, evento, mio = null) {
     return corpo;
   }, { wide: true });
 }
+
+/** Dove sta la partita, quando non si e' riusciti a caricarla. */
+const linkPartita = (riga) => (riga.r
+  ? `https://lichess.org/broadcast/-/-/${riga.r}`
+  : `https://www.chess.com/game/live/${riga.id}`);
 
 /* -------------------------------- la vista ------------------------------ */
 
@@ -172,9 +184,9 @@ function vista(riga, mosse, posizioni, mio, url, close) {
     el("div.spread", { style: "gap:.6rem;align-items:flex-start" },
       el("div", { style: "min-width:0" },
         el("div.pname",
-          el("strong", riga.w), el("span.muted", ` ${riga.wr || ""} `),
+          el("strong", riga.wn || riga.w), el("span.muted", ` ${riga.wr || ""} `),
           el("span.badge", esito),
-          el("span.muted", ` ${riga.br || ""} `), el("strong", riga.b)),
+          el("span.muted", ` ${riga.br || ""} `), el("strong", riga.bn || riga.b)),
         el("div.small.mute-2", `Turno ${riga.t}${riga.eco ? ` · ${riga.eco}` : ""}`)),
       el("button.pc-close", { type: "button", onclick: close, "aria-label": "Chiudi" }, "✕"),
     ),
@@ -207,9 +219,9 @@ function vista(riga, mosse, posizioni, mio, url, close) {
 
     el("div.row",
       el("a.btn.btn-sm.btn-ghost", {
-        href: url || `https://www.chess.com/game/live/${riga.id}`,
+        href: url || linkPartita(riga),
         target: "_blank", rel: "noopener noreferrer",
-      }, "Su chess.com ↗"),
+      }, `Su ${riga.r ? "Lichess" : "chess.com"} ↗`),
     ),
   );
 }
