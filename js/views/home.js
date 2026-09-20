@@ -140,17 +140,7 @@ function openCreate(ctx) {
           return;
         }
 
-        render(dove, id === "torneo"
-          ? e("label.field", { style: "margin-top:.4rem" }, "Quale torneo",
-              e("select", { name: "tour" },
-                lista.map((t) => e("option", { value: t.id },
-                  `${t.name} · ${t.rounds} turni · ${t.players} giocatori`))))
-          : e("div.stack-s", { style: "margin-top:.4rem" },
-              e("div.small.muted", "Quali tornei fanno stagione"),
-              ...lista.map((t) => e("label.row", { style: "gap:.5rem;font-size:.9rem" },
-                e("input", { type: "checkbox", name: "tours", value: t.id,
-                  style: "width:auto" }),
-                `${t.name} · ${t.rounds} turni`))));
+        render(dove, selettoreTornei(e, render, lista, id));
       }
 
       function aggiornaModo(ev) {
@@ -208,6 +198,76 @@ function openCreate(ctx) {
       return form;
     });
   });
+}
+
+/**
+ * Scelta del torneo (o dei tornei, per un circuito).
+ *
+ * L'archivio e' passato da due tornei a qualche centinaio, e una tendina
+ * con dentro tutto il calendario mondiale non si legge: i nomi si
+ * somigliano tutti ("| Open", "| Masters", "| Round 3") e quello che
+ * distingue davvero e' la data. Quindi una casella per cercare, l'elenco
+ * dal piu' recente, e per il circuito solo i primi risultati — chi ne vuole
+ * uno vecchio lo cerca per nome invece di scorrere trecento righe.
+ */
+function selettoreTornei(e, render, lista, tipo) {
+  const QUANTI = 25;
+  let filtro = "";
+
+  const risultati = () => {
+    const q = filtro.trim().toLowerCase();
+    return q ? lista.filter((t) => t.name.toLowerCase().includes(q)) : lista;
+  };
+
+  const corpo = e("div.stack-s");
+
+  const etichetta = (t) => {
+    const anno = t.dates?.[0] ? new Date(t.dates[0]).getFullYear() : "";
+    return `${t.name} · ${anno} · ${t.rounds} turni · ${t.players} giocatori`;
+  };
+
+  function disegna() {
+    const trovati = risultati();
+
+    if (!trovati.length) {
+      render(corpo, e("p.small.mute-2", { style: "margin:0" },
+        "Nessun torneo con questo nome."));
+      return;
+    }
+
+    if (tipo === "torneo") {
+      render(corpo,
+        e("label.field", "Quale torneo",
+          e("select", { name: "tour" },
+            trovati.map((t) => e("option", { value: t.id }, etichetta(t))))));
+      return;
+    }
+
+    const mostrati = trovati.slice(0, QUANTI);
+    render(corpo,
+      e("div.small.muted", "Quali tornei fanno stagione"),
+      ...mostrati.map((t) => e("label.row", { style: "gap:.5rem;font-size:.9rem" },
+        e("input", { type: "checkbox", name: "tours", value: t.id,
+          style: "width:auto" }),
+        etichetta(t))),
+      trovati.length > mostrati.length
+        ? e("p.small.mute-2", { style: "margin:0" },
+            `Altri ${trovati.length - mostrati.length}: cercali per nome.`)
+        : null);
+  }
+
+  disegna();
+
+  return e("div.stack-s", { style: "margin-top:.4rem" },
+    e("label.field", `Cerca fra ${lista.length} tornei`,
+      e("input", {
+        type: "search", placeholder: "Tata Steel, Candidates, Olympiad…",
+        // Il campo non fa parte dei dati della lega: senza nome non
+        // finisce nella FormData insieme a quelli veri.
+        oninput: (ev) => { filtro = ev.target.value; disegna(); },
+      })),
+    corpo,
+  );
 }
 
 function openJoin(ctx) {

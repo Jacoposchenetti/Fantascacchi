@@ -59,6 +59,20 @@ SEGUITI = OUT / "seguiti.json"
 # con calma, e una partita aggiustata il giorno dopo cambia la classifica.
 CODA_S = 2 * 24 * 3600
 
+# Cosa merita di stare in catalogo.
+#
+# Lichess trasmette anche pezzi di tornei: le Olimpiadi arrivano spezzate
+# per fascia di scacchiera, e una di quelle "tour" ha 929 giocatori e un
+# turno solo. Non e' un torneo su cui si possa fare un'asta — sarebbe un
+# listone da 929 nomi per una giornata sola — ma senza un filtro finisce
+# in elenco accanto ai Candidati, con lo stesso aspetto.
+#
+# I numeri sono larghi apposta: tagliano quello che non puo' funzionare,
+# non quello che non ci piace. Un open da 250 giocatori resta dentro.
+MIN_TURNI = 2
+MIN_CAMPO = 4
+MAX_CAMPO = 300
+
 # Sotto questo divario di rating la vittoria non e' una sorpresa. Stesso
 # valore dei Titled Tuesday: cambiarlo qui e non li' vorrebbe dire che la
 # stessa impresa vale diversamente a seconda del torneo.
@@ -190,17 +204,65 @@ def scrivi(percorso, dati):
     return percorso.stat().st_size
 
 
-def gia_completo(tour_id, turni_meta):
-    """
-    Vero se l'archivio c'e' gia', copre tutti i turni ed e' passata la coda.
-    Serve a non riscaricare ogni notte i tornei dell'anno scorso.
-    """
+def scartato(turni_meta, campo):
+    """Perche' questo torneo non va in catalogo, o None se ci va."""
+    if len(turni_meta) < MIN_TURNI:
+        return f"un turno solo ({len(turni_meta)}): e' una partita, non un torneo"
+    if len(campo) < MIN_CAMPO:
+        return f"solo {len(campo)} giocatori: non c'e' niente da mettere all'asta"
+    if len(campo) > MAX_CAMPO:
+        return f"{len(campo)} giocatori: troppi per un listone d'asta"
+    return None
+
+
+def butta(tour_id):
+    """Toglie dall'archivio un torneo che non merita il catalogo."""
+    d = OUT / tour_id
+    if not d.exists():
+        return
+    for f in sorted(d.rglob("*"), reverse=True):
+        f.unlink() if f.is_file() else f.rmdir()
+    d.rmdir()
+    print(f"      rimosso l'archivio di {tour_id}", flush=True)
+
+
+def archivio(tour_id):
+    """L'indice gia' salvato, se c'e' ed e' leggibile."""
     idx = OUT / tour_id / "index.json"
     if not idx.exists():
-        return False
+        return None
     try:
-        m = json.loads(idx.read_text(encoding="utf-8"))
+        return json.loads(idx.read_text(encoding="utf-8"))
     except Exception:
+        return None
+
+
+def chiuso_in_archivio(tour_id):
+    """
+    Vero se quello che abbiamo in casa dice gia' che il torneo e' finito:
+    tutti i turni giocati e l'ultimo piu' vecchio della coda.
+
+    Non fa nessuna chiamata, ed e' il motivo per cui esiste. Con duecento
+    tornei in elenco, una chiamata a testa due volte al giorno vuol dire
+    ottomila richieste al mese per non scoprire niente: un torneo del 2022
+    non ricomincia.
+    """
+    m = archivio(tour_id)
+    if not m or not m.get("rounds"):
+        return False
+    if any((r.get("played") or 0) == 0 for r in m["rounds"]):
+        return False
+    ultimo = max((r.get("start") or 0) for r in m["rounds"])
+    return bool(ultimo) and time.time() > ultimo + CODA_S
+
+
+def gia_completo(tour_id, turni_meta):
+    """
+    Come sopra, ma confrontando anche col numero di turni che Lichess
+    dichiara adesso: un torneo puo' averne aggiunti dopo.
+    """
+    m = archivio(tour_id)
+    if not m:
         return False
     if len(m.get("rounds", [])) < len(turni_meta):
         return False
@@ -227,6 +289,12 @@ def costruisci(tour_id, forza=False):
 
     print(f"      {tour.get('name')}: {len(turni_meta)} turni, "
           f"{len(campo)} giocatori", flush=True)
+
+    perche = scartato(turni_meta, campo)
+    if perche:
+        print(f"      scartato: {perche}", flush=True)
+        butta(tour_id)
+        return None
 
     turni = leggi_turni(tour_id, turni_meta)
     dest = OUT / tour_id
@@ -335,6 +403,14 @@ def rigenera_indice():
     voci = []
     for d in sorted(OUT.glob("*/index.json")):
         m = json.loads(d.read_text(encoding="utf-8"))
+        # Il catalogo si ridefinisce qui a ogni giro: se i criteri cambiano,
+        # quello che non li rispetta piu' se ne va invece di restare in
+        # elenco perche' un tempo era passato.
+        perche = scartato(m.get("rounds") or [], m.get("players") or [])
+        if perche:
+            print(f"      {m.get('id')}: {perche}", flush=True)
+            butta(m.get("id") or d.parent.name)
+            continue
         voci.append({
             "id": m["id"], "name": m["name"], "tier": m.get("tier", 0),
             "dates": m.get("dates", []), "url": m.get("url", ""),
@@ -399,14 +475,19 @@ def main():
               file=sys.stderr)
         return 1
 
-    fatti = 0
+    fatti = saltati = 0
     for tid in tours:
+        # Chiuso e archiviato: non si tocca e non si chiede nemmeno.
+        if not args.force and chiuso_in_archivio(tid):
+            saltati += 1
+            continue
         if costruisci(tid, forza=args.force):
             fatti += 1
 
     rigenera_indice()
-    print(f"\n{fatti} tornei su {len(tours)} archiviati.")
-    return 0 if fatti else 1
+    print(f"\n{fatti} aggiornati, {saltati} gia' chiusi e lasciati stare, "
+          f"su {len(tours)}.")
+    return 0 if (fatti or saltati) else 1
 
 
 if __name__ == "__main__":
