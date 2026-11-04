@@ -1,7 +1,17 @@
 {
- "generatedAt": "2026-10-28T06:05:49Z",
+ "generatedAt": "2026-11-04T06:05:02Z",
  "durataStimataS": 10800,
  "events": [
+  {
+   "id": "titled-tuesday-blitz-november-03-2026-31201855",
+   "date": "2026-11-03",
+   "start": 1793721600,
+   "finish": null,
+   "rounds": 11,
+   "played": 302,
+   "total": 484,
+   "h2h": 178
+  },
   {
    "id": "titled-tuesday-blitz-october-27-2026-31182943",
    "date": "2026-10-27",
